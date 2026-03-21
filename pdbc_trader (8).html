@@ -1,0 +1,4142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDBC Paper Trading Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #080c10;
+    --bg2: #0d1117;
+    --bg3: #111820;
+    --bg4: #161e28;
+    --border: #1e2d3d;
+    --border2: #243545;
+    --text: #c9d8e8;
+    --text2: #7a9ab5;
+    --text3: #4a6a85;
+    --accent: #00d4ff;
+    --accent2: #0099cc;
+    --green: #00ff88;
+    --green2: #00cc66;
+    --green3: #004422;
+    --red: #ff3355;
+    --red2: #cc2244;
+    --red3: #440011;
+    --yellow: #ffcc00;
+    --yellow3: #332800;
+    --orange: #ff8833;
+    --pink: #ff44bb;
+    --blue: #4488ff;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-head: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* HEADER */
+  #header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  #header-left { display: flex; align-items: center; gap: 12px; }
+  #header-title { font-family: var(--font-head); font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: -0.5px; }
+  #header-sub { font-size: 11px; color: var(--text3); }
+
+  #header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  #clock {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--bg3);
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    letter-spacing: 0.5px;
+  }
+
+  #check-window-indicator {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+  }
+  .window-morning { background: #1a2200; color: #aaff44; border: 1px solid #446600; }
+  .window-midday { background: #001a22; color: #44aaff; border: 1px solid #006688; }
+  .window-other { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+
+  #data-source-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .src-yahoo { background: #002800; color: #00ff88; border: 1px solid #00aa44; }
+  .src-polygon { background: #002228; color: #44ccff; border: 1px solid #0088aa; }
+  .src-simulated { background: #280028; color: #ff88ff; border: 1px solid #880088; }
+
+  /* MAIN LAYOUT */
+  #main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    min-height: calc(100vh - 54px);
+  }
+
+  #left-col {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+
+  #right-col {
+    overflow-y: auto;
+    background: var(--bg2);
+  }
+
+  /* SECTION WRAPPER */
+  .section {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+  }
+
+  .section-title {
+    font-family: var(--font-head);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text3);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* SIGNAL BADGE */
+  #signal-badge-wrap {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+
+  #signal-badge {
+    display: inline-block;
+    font-family: var(--font-head);
+    font-size: 32px;
+    font-weight: 800;
+    padding: 14px 32px;
+    border-radius: 10px;
+    letter-spacing: 1px;
+    width: 100%;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+    transition: all 0.3s ease;
+  }
+
+  .badge-strong-buy { background: linear-gradient(135deg, #004422, #007744); color: #00ff88; border: 2px solid #00cc66; }
+  .badge-buy { background: linear-gradient(135deg, #002211, #005533); color: #44ffaa; border: 2px solid #008844; }
+  .badge-hold { background: linear-gradient(135deg, #222200, #444400); color: #ffcc00; border: 2px solid #888800; }
+  .badge-sell { background: linear-gradient(135deg, #331100, #552200); color: #ff8833; border: 2px solid #aa4400; }
+  .badge-strong-sell { background: linear-gradient(135deg, #330011, #550011); color: #ff3355; border: 2px solid #aa0033; }
+
+  #signal-action-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+    padding: 10px 16px;
+    background: var(--bg3);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  /* CARDS / GRID */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+  }
+
+  .card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+
+  .card-label {
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .card-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    font-family: var(--font-mono);
+  }
+
+  .card-sub {
+    font-size: 10px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+
+  .val-green { color: var(--green) !important; }
+  .val-red { color: var(--red) !important; }
+  .val-yellow { color: var(--yellow) !important; }
+  .val-orange { color: var(--orange) !important; }
+  .val-blue { color: var(--blue) !important; }
+  .val-pink { color: var(--pink) !important; }
+  .val-accent { color: var(--accent) !important; }
+
+  /* MA STATS ROW */
+  .ma-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  /* PROGRESS BAR */
+  .progress-bar-wrap {
+    background: var(--bg4);
+    border-radius: 4px;
+    height: 8px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+
+  /* GAUGE */
+  .gauge-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .gauge-row:last-child { border-bottom: none; }
+  .gauge-label { width: 140px; font-size: 11px; color: var(--text2); flex-shrink: 0; }
+  .gauge-bar-wrap { flex: 1; background: var(--bg4); border-radius: 4px; height: 10px; overflow: hidden; }
+  .gauge-bar-fill { height: 100%; border-radius: 4px; transition: all 0.4s ease; }
+  .gauge-val { width: 50px; text-align: right; font-size: 12px; font-weight: 600; }
+
+  /* BUTTONS */
+  .btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    letter-spacing: 0.3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-buy {
+    background: var(--green3);
+    color: var(--green);
+    border-color: var(--green2);
+  }
+  .btn-buy:hover:not(:disabled) { background: #006633; }
+
+  .btn-sell {
+    background: var(--red3);
+    color: var(--red);
+    border-color: var(--red2);
+  }
+  .btn-sell:hover:not(:disabled) { background: #660022; }
+
+  .btn-primary {
+    background: #001a22;
+    color: var(--accent);
+    border-color: var(--accent2);
+  }
+  .btn-primary:hover:not(:disabled) { background: #003344; }
+
+  .btn-warn {
+    background: #221100;
+    color: var(--orange);
+    border-color: #884400;
+  }
+
+  .btn-ghost {
+    background: var(--bg3);
+    color: var(--text2);
+    border-color: var(--border);
+  }
+  .btn-ghost:hover { background: var(--bg4); color: var(--text); }
+
+  .btn-lg {
+    font-size: 15px;
+    font-weight: 700;
+    padding: 12px 24px;
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+  }
+
+  /* ALERTS */
+  .alert {
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.6;
+    border: 1px solid;
+  }
+
+  .alert-red { background: var(--red3); color: #ff8899; border-color: var(--red2); }
+  .alert-green { background: var(--green3); color: #88ffbb; border-color: var(--green2); }
+  .alert-yellow { background: var(--yellow3); color: #ffdd88; border-color: #886600; }
+  .alert-orange { background: #221100; color: #ffbb66; border-color: #884400; }
+  .alert-pink { background: #220033; color: #ff88dd; border-color: #880066; }
+  .alert-blue { background: #001133; color: #88aaff; border-color: #2244aa; }
+
+  /* OCO CARD */
+  #oco-card {
+    background: linear-gradient(135deg, #001122, #002233);
+    border: 2px solid var(--accent2);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  #oco-card .oco-title {
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .oco-price-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .oco-price-box {
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+  }
+
+  .oco-stop { background: var(--red3); border: 1px solid var(--red2); }
+  .oco-target { background: var(--green3); border: 1px solid var(--green2); }
+
+  .oco-price-label { font-size: 10px; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; }
+  .oco-price-val { font-size: 20px; font-weight: 700; }
+  .oco-stop .oco-price-val { color: var(--red); }
+  .oco-target .oco-price-val { color: var(--green); }
+
+  /* JOURNAL */
+  .journal-entry {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+  }
+
+  .journal-entry-time { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+  .journal-entry-text { font-size: 12px; color: var(--text); }
+  .journal-entry-auto { border-color: var(--border2); background: var(--bg4); }
+  .journal-entry-auto .journal-entry-text { color: var(--text2); }
+
+  textarea {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 8px 10px;
+    resize: vertical;
+    min-height: 70px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  textarea:focus { border-color: var(--accent2); }
+
+  input[type="number"], input[type="text"] {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+
+  input:focus { border-color: var(--accent2); }
+
+  /* TOGGLE */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+  }
+
+  .toggle {
+    width: 42px;
+    height: 22px;
+    background: var(--bg4);
+    border-radius: 11px;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: var(--text3);
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: all 0.2s;
+  }
+
+  .toggle.on { background: var(--green3); border-color: var(--green2); }
+  .toggle.on::after { left: 22px; background: var(--green); }
+
+  .toggle-label { font-size: 12px; color: var(--text2); }
+
+  /* CANVAS */
+  #chart-canvas {
+    width: 100%;
+    display: block;
+    background: var(--bg);
+  }
+
+  /* SNAPSHOT COMPARISON */
+  .snapshot-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .snapshot-col {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+  }
+
+  .snapshot-col-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  .snapshot-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .snapshot-row:last-child { border-bottom: none; }
+  .snapshot-row-label { color: var(--text3); }
+  .snapshot-row-val { color: var(--text); font-weight: 600; }
+
+  /* DRAWDOWN STATUS ROW */
+  .dd-status-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  .dd-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid;
+    letter-spacing: 0.3px;
+  }
+
+  .dd-safe { background: #002210; color: var(--green); border-color: var(--green2); }
+  .dd-warn { background: var(--yellow3); color: var(--yellow); border-color: #886600; }
+  .dd-breach { background: var(--red3); color: var(--red); border-color: var(--red2); }
+
+  /* POSITION P&L CARD */
+  #position-card {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  /* EXIT TRIGGER BADGES */
+  .exit-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    border: 1px solid;
+    font-size: 11px;
+  }
+
+  .exit-trigger-icon { font-size: 14px; }
+  .et-stop { background: #1a0005; border-color: #aa0033; color: #ff6688; }
+  .et-profit { background: #001a08; border-color: #00aa44; color: #44ff88; }
+  .et-signal { background: #1a0015; border-color: #aa0077; color: #ff66cc; }
+
+  /* CONFIDENCE PANEL */
+  #confidence-panel {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  .conf-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .conf-row:last-child { border-bottom: none; }
+  .conf-key { color: var(--text2); }
+  .conf-val { font-weight: 600; }
+
+  /* BLOCKING OVERLAY */
+  #blocking-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  #blocking-overlay .block-title {
+    font-family: var(--font-head);
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--red);
+    text-align: center;
+  }
+
+  #blocking-overlay .block-msg {
+    font-size: 14px;
+    color: var(--text2);
+    text-align: center;
+    max-width: 500px;
+    line-height: 1.7;
+  }
+
+  #block-confirm-input {
+    width: 300px;
+    text-align: center;
+    font-size: 14px;
+  }
+
+  /* TAX MONTHLY TABLE */
+  .tax-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  .tax-table th {
+    background: var(--bg4);
+    color: var(--text3);
+    font-weight: 600;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .tax-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  .tax-table tr:last-child td { border-bottom: none; }
+
+  /* MARKET CONTEXT CARD */
+  #market-context {
+    background: linear-gradient(135deg, #0a0c10, #0d1018);
+    border: 1px solid #1a2230;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--text2);
+  }
+
+  #market-context .mc-title {
+    font-family: var(--font-head);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  #market-context .mc-driver { color: var(--yellow); }
+  #market-context .mc-warn { color: var(--orange); }
+  #market-context .mc-stats { color: var(--accent); }
+
+  /* TABS */
+  .tab-row {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 10px 16px;
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+    transition: all 0.15s;
+  }
+
+  .tab-btn:hover { color: var(--text2); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* CONFIRMATION MODAL */
+  #modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  #modal-box {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 20px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  #modal-title {
+    font-family: var(--font-head);
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 14px;
+    color: var(--text);
+  }
+
+  /* SUMMARY CARD ROW */
+  #summary-row {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    scrollbar-width: none;
+  }
+  #summary-row::-webkit-scrollbar { display: none; }
+
+  .sum-card {
+    flex: 1 0 190px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 190px;
+  }
+
+  .sum-card-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 2px;
+  }
+
+  .sum-card-main {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+
+  .sum-card-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  .sum-sub-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .sum-sub-key {
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+
+  .sum-sub-val {
+    font-weight: 600;
+    text-align: right;
+    font-family: var(--font-mono);
+  }
+
+  /* Card 4 signal value inherits badge colours but is inline */
+  .sum-signal-text {
+    font-size: 18px;
+    font-weight: 800;
+    font-family: var(--font-head);
+    padding: 5px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-bottom: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  @media (max-width: 700px) {
+    .sum-card { flex: 0 0 200px; }
+    .sum-card-main { font-size: 19px; }
+  }
+
+
+  @media (max-width: 900px) {
+    #main { grid-template-columns: 1fr; }
+    #right-col { border-top: 1px solid var(--border); border-right: none; }
+    .ma-stats { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 600px) {
+    #signal-badge { font-size: 22px; padding: 10px 16px; }
+    .card-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* MORNING SNAPSHOT UNAVAILABLE */
+  .snapshot-unavail {
+    background: var(--yellow3);
+    border: 1px solid #886600;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  /* WIN STREAK */
+  .win-streak-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #002210, #004422);
+    border: 1px solid var(--green2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  /* REGIME OVERRIDE BANNER */
+  #regime-banner {
+    background: linear-gradient(135deg, #002211, #004422);
+    border: 1px solid #008844;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 11px;
+    color: #88ffcc;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* INLINE LOADING */
+  .loading-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  .spin {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* FRIDAY REVIEW */
+  .friday-review {
+    background: linear-gradient(135deg, #080c18, #0d1220);
+    border: 1px solid #1e3060;
+    border-radius: 8px;
+    padding: 14px;
+    margin-top: 10px;
+  }
+
+  .friday-review-title {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--blue);
+    margin-bottom: 12px;
+  }
+
+  /* Number input small */
+  .input-sm {
+    width: 80px;
+    text-align: center;
+  }
+
+  /* Override panel */
+  #override-panel {
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px;
+  }
+
+  .override-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--orange);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  /* Small tag */
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.3px;
+  }
+
+  .tag-green { background: var(--green3); color: var(--green); border: 1px solid var(--green2); }
+  .tag-red { background: var(--red3); color: var(--red); border: 1px solid var(--red2); }
+  .tag-yellow { background: var(--yellow3); color: var(--yellow); border: 1px solid #886600; }
+  .tag-blue { background: #001133; color: var(--blue); border: 1px solid #224488; }
+  .tag-pink { background: #220033; color: var(--pink); border: 1px solid #880066; }
+  .tag-orange { background: #221100; color: var(--orange); border: 1px solid #884400; }
+  .tag-accent { background: #001a22; color: var(--accent); border: 1px solid #004466; }
+
+  /* REFRESH SPINNER in header */
+  #refresh-icon { font-size: 12px; }
+  #last-updated { font-size: 10px; color: var(--text3); }
+  /* WATCHLIST */
+  .wl-card {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    transition: border-color 0.3s;
+  }
+
+  .wl-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .wl-ticker {
+    font-family: var(--font-head);
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: 0.5px;
+    min-width: 52px;
+  }
+
+  .wl-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .wl-metric {
+    background: var(--bg4);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+  }
+
+  .wl-metric-label {
+    font-size: 9px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 2px;
+  }
+
+  .wl-metric-val {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .wl-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px 12px;
+  }
+
+  .wl-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    padding: 2px 0;
+  }
+
+  .wl-filter-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .wl-filter-label { color: var(--text2); }
+  .wl-filter-fail  { color: var(--text3); text-decoration: line-through; }
+
+  @media (max-width: 600px) {
+    .wl-filters { grid-template-columns: 1fr; }
+    .wl-metrics { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
+  }
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<!-- BLOCKING OVERLAY (total drawdown) -->
+<div id="blocking-overlay" style="display:none;">
+  <div class="block-title">⛔ STOP ALL TRADING</div>
+  <div class="block-msg">Account balance has fallen below $400. Stop all real money trading immediately. Return to paper trading indefinitely until you identify what went wrong.</div>
+  <div style="font-size:13px;color:var(--text2);margin-top:10px;">Type <strong style="color:var(--red)">I understand and accept</strong> to clear this alert.</div>
+  <input type="text" id="block-confirm-input" placeholder='Type "I understand and accept"' />
+  <button class="btn btn-warn" onclick="checkBlockConfirm()">Clear Alert</button>
+</div>
+
+<!-- CONFIRMATION MODAL -->
+<div id="modal-overlay" style="display:none;">
+  <div id="modal-box">
+    <div id="modal-title">Confirm Trade</div>
+    <div id="modal-body"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;" id="modal-buttons"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div id="header">
+  <div id="header-left">
+    <div>
+      <div id="header-title">PDBC TRADER</div>
+      <div id="header-sub">Invesco Optimum Yield Diversified Commodity ETF</div>
+    </div>
+    <div id="check-window-indicator" class="window-other">—</div>
+  </div>
+  <div id="header-right">
+    <div id="last-updated">—</div>
+    <span id="refresh-icon">⟳</span>
+    <div id="data-source-badge" class="src-simulated">SIMULATED</div>
+    <div id="clock">--:-- -- PT</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <!-- LEFT COLUMN -->
+  <div id="left-col">
+
+    <!-- SIGNAL BADGE -->
+    <div id="signal-badge-wrap">
+      <div id="signal-badge" class="badge-hold">HOLD</div>
+      <div id="signal-action-text">Calculating signal... please wait for price data.</div>
+    </div>
+
+    <!-- SUMMARY ROW -->
+    <div id="summary-row">
+
+      <!-- Card 1: PORTFOLIO -->
+      <div class="sum-card" style="border-color:#1e3a2a;">
+        <div class="sum-card-label">Portfolio</div>
+        <div class="sum-card-main val-green" id="sc-total">$—</div>
+        <div class="sum-card-divider"></div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Starting</span>
+          <span class="sum-sub-val" id="sc-start">$500.00</span>
+        </div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Cash</span>
+          <span class="sum-sub-val val-green" id="sc-cash">$—</span>
+        </div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Position</span>
+          <span class="sum-sub-val" id="sc-pos">—</span>
+        </div>
+      </div>
+
+      <!-- Card 2: P&L -->
+      <div class="sum-card" style="border-color:#1e2a3a;">
+        <div class="sum-card-label">P &amp; L</div>
+        <div class="sum-card-main" id="sc-pnl">$0.00</div>
+        <div class="sum-card-divider"></div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Unrealised</span>
+          <span class="sum-sub-val" id="sc-unreal">$0.00</span>
+        </div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Win rate</span>
+          <span class="sum-sub-val" id="sc-wr">—</span>
+        </div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Trades</span>
+          <span class="sum-sub-val" id="sc-wl">W:0 L:0</span>
+        </div>
+      </div>
+
+      <!-- Card 3: TAX TRACKER -->
+      <div class="sum-card" style="border-color:#2a1e1e;">
+        <div class="sum-card-label">Tax Tracker</div>
+        <div class="sum-card-main" id="sc-takehome">$0.00</div>
+        <div class="sum-card-divider"></div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Gains</span>
+          <span class="sum-sub-val val-green" id="sc-gains">$0.00</span>
+        </div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Losses</span>
+          <span class="sum-sub-val val-red" id="sc-losses">$0.00</span>
+        </div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Net taxable</span>
+          <span class="sum-sub-val" id="sc-nettax">$0.00</span>
+        </div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Est. tax 22%</span>
+          <span class="sum-sub-val val-orange" id="sc-taxowed">$0.00</span>
+        </div>
+      </div>
+
+      <!-- Card 4: SIGNAL & CONFIDENCE -->
+      <div class="sum-card" style="border-color:#1e1e2a;">
+        <div class="sum-card-label">Signal &amp; Confidence</div>
+        <div id="sc-signal-badge" class="sum-signal-text badge-hold"><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#ffcc00;vertical-align:middle;margin-right:6px;margin-bottom:1px;"></span>HOLD</div>
+        <div class="sum-card-divider"></div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Market</span>
+          <span class="sum-sub-val" id="sc-market">—</span>
+        </div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">MA Gap</span>
+          <span class="sum-sub-val" id="sc-gap">—</span>
+        </div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Consec. days</span>
+          <span class="sum-sub-val" id="sc-consec">—</span>
+        </div>
+        <div class="sum-sub-row">
+          <span class="sum-sub-key">Confidence</span>
+          <span class="sum-sub-val" id="sc-conf">—</span>
+        </div>
+      </div>
+
+    </div><!-- /summary-row -->
+
+    <!-- TABS -->
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+      <button class="tab-btn" onclick="switchTab('morning')">6:15am Check</button>
+      <button class="tab-btn" onclick="switchTab('midday')">12:45pm Check</button>
+      <button class="tab-btn" onclick="switchTab('portfolio')">Portfolio</button>
+      <button class="tab-btn" onclick="switchTab('journal')">Journal</button>
+      <button class="tab-btn" onclick="switchTab('tax')">Tax</button>
+      <button class="tab-btn" onclick="switchTab('watchlist')">Watchlist</button>
+    </div>
+
+    <!-- OVERVIEW TAB -->
+    <div id="tab-overview" class="tab-panel active">
+
+      <!-- ALERTS AREA -->
+      <div id="alerts-area" class="section" style="padding-bottom:6px;"></div>
+
+      <!-- PRICE & MA -->
+      <div class="section">
+        <div class="section-title">Price & Moving Averages</div>
+        <div class="ma-stats">
+          <div class="card">
+            <div class="card-label" id="price-card-label">PDBC Price</div>
+            <div class="card-value" id="price-display">$—</div>
+            <div class="card-sub" id="price-change-display">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">MA5</div>
+            <div class="card-value val-blue" id="ma5-display">$—</div>
+            <div class="card-sub" id="ma5-sub">5-day avg</div>
+          </div>
+          <div class="card">
+            <div class="card-label">MA20</div>
+            <div class="card-value val-orange" id="ma20-display">$—</div>
+            <div class="card-sub">20-day avg</div>
+          </div>
+          <div class="card">
+            <div class="card-label">MA Gap</div>
+            <div class="card-value" id="ma-gap-display">—</div>
+            <div class="card-sub" id="ma-gap-dir">—</div>
+          </div>
+        </div>
+
+        <!-- Consecutive days counter -->
+        <div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:11px;color:var(--text2);">Consecutive days MA5 &gt; MA20</span>
+            <span id="consec-days-label" style="font-weight:700;font-size:14px;">0</span>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="consec-days-bar" style="width:0%;background:var(--green);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:2px;">
+            <span>0</span><span>3 required</span><span>10</span>
+          </div>
+        </div>
+
+        <!-- Gap direction -->
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div>
+            <span style="font-size:11px;color:var(--text2);">Gap direction: </span>
+            <span id="gap-dir-label" style="font-weight:700;">—</span>
+          </div>
+          <div>
+            <span style="font-size:11px;color:var(--text2);">3-day rule: </span>
+            <span id="three-day-status" style="font-weight:700;">—</span>
+          </div>
+          <div>
+            <span style="font-size:11px;color:var(--text2);">Market: </span>
+            <span id="market-trend-label" style="font-weight:700;">—</span>
+          </div>
+          <div>
+            <span style="font-size:11px;color:var(--text2);">Pattern score: </span>
+            <span id="pattern-score-label" style="font-weight:700;color:var(--accent);">—%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHART -->
+      <div class="section" style="padding:0;">
+        <canvas id="chart-canvas" height="220"></canvas>
+      </div>
+
+      <!-- 3-5-7 RISK GAUGES -->
+      <div class="section">
+        <div class="section-title">3-5-7 Risk Dashboard</div>
+        <div class="gauge-row">
+          <span class="gauge-label">Trade Risk</span>
+          <div class="gauge-bar-wrap">
+            <div class="gauge-bar-fill" id="gauge-trade-fill" style="width:0%;background:var(--green);"></div>
+          </div>
+          <span class="gauge-val val-green" id="gauge-trade-val">0.0%</span>
+        </div>
+        <div class="gauge-row">
+          <span class="gauge-label">Open Risk</span>
+          <div class="gauge-bar-wrap">
+            <div class="gauge-bar-fill" id="gauge-open-fill" style="width:0%;background:var(--green);"></div>
+          </div>
+          <span class="gauge-val val-green" id="gauge-open-val">0.0%</span>
+        </div>
+        <div class="gauge-row">
+          <span class="gauge-label">Win Rate → 70%</span>
+          <div class="gauge-bar-wrap">
+            <div class="gauge-bar-fill" id="gauge-winrate-fill" style="width:0%;background:var(--yellow);"></div>
+          </div>
+          <span class="gauge-val" id="gauge-winrate-val">—</span>
+        </div>
+      </div>
+
+      <!-- DRAWDOWN STATUS -->
+      <div class="section">
+        <div class="section-title">Drawdown Protection</div>
+        <div class="dd-status-row" id="dd-status-row"></div>
+      </div>
+
+      <!-- MARKET CONTEXT -->
+      <div class="section">
+        <div class="section-title">Market Context</div>
+        <div id="market-context">
+          <div class="mc-title" id="mc-title">PDBC — Commodity Futures ETF</div>
+          <div id="mc-drivers">Driven by: <span class="mc-driver">Gold, Silver, Oil, Agricultural commodities</span></div>
+          <div style="margin-top:6px;color:var(--orange);" id="mc-warn">⚠ Contango decay: PDBC loses value long-term via futures roll costs. Never hold through a sell signal.</div>
+          <div style="margin-top:6px;" id="mc-stats">52-wk high: <span class="mc-stats">$17.25</span> &nbsp;|&nbsp; 52-wk low: <span class="mc-stats">$12.02</span></div>
+          <div style="margin-top:6px;" id="mc-current">Current drivers: <span class="mc-driver">Gold approaching $3,000/oz</span> &nbsp;|&nbsp; <span class="mc-driver">Silver +102% in 2025</span></div>
+        </div>
+      </div>
+
+    </div><!-- /tab-overview -->
+
+    <!-- MORNING CHECK TAB -->
+    <div id="tab-morning" class="tab-panel">
+      <div class="section">
+        <div class="section-title">6:15am Morning Check</div>
+
+        <div id="morning-status-row" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--text2);">Snapshot status:</span>
+          <span id="morning-snap-status" class="tag tag-yellow">Checking...</span>
+        </div>
+
+        <!-- Manual capture button -->
+        <button id="manual-snap-btn" class="btn btn-primary" style="width:100%;justify-content:center;font-size:13px;font-weight:700;padding:11px 16px;margin-bottom:14px;letter-spacing:0.3px;" onclick="manualCaptureSnapshot()">
+          Capture Morning Snapshot Now
+        </button>
+
+        <!-- Morning data grid -->
+        <div class="card-grid" style="margin-bottom:12px;">
+          <div class="card">
+            <div class="card-label">Price (AM)</div>
+            <div class="card-value" id="am-price">$—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">MA5 (AM)</div>
+            <div class="card-value val-blue" id="am-ma5">$—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">MA20 (AM)</div>
+            <div class="card-value val-orange" id="am-ma20">$—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Consec. Days</div>
+            <div class="card-value" id="am-consec">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Gap Dir.</div>
+            <div class="card-value" id="am-gap-dir">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Signal</div>
+            <div class="card-value" id="am-signal">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Market</div>
+            <div class="card-value" id="am-market">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Snap Time</div>
+            <div class="card-value" id="am-snaptime" style="font-size:12px;">—</div>
+          </div>
+        </div>
+
+        <!-- YES/NO candidate button -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px;" id="candidate-question">Is PDBC a candidate today?</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-buy" onclick="logMorningCandidate(true)">✓ YES</button>
+            <button class="btn btn-sell" onclick="logMorningCandidate(false)">✗ NO</button>
+          </div>
+        </div>
+
+        <!-- Morning journal -->
+        <div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">Morning observations:</div>
+          <textarea id="morning-note" placeholder="Enter your 6:15am observations..."></textarea>
+          <button class="btn btn-primary" style="margin-top:6px;" onclick="saveMorningNote()">Save Morning Note</button>
+        </div>
+      </div>
+    </div><!-- /tab-morning -->
+
+    <!-- MIDDAY CHECK TAB -->
+    <div id="tab-midday" class="tab-panel">
+      <div class="section">
+        <div class="section-title">12:45pm Afternoon Check</div>
+
+        <!-- Snapshot comparison -->
+        <div id="snapshot-comparison-area" style="margin-bottom:12px;"></div>
+
+        <!-- Signal match -->
+        <div id="signal-match-area" style="margin-bottom:12px;"></div>
+
+        <!-- Entry decision or open position -->
+        <div id="midday-action-area"></div>
+
+        <!-- OCO card -->
+        <div id="oco-card-area"></div>
+
+        <!-- Afternoon journal -->
+        <div style="margin-top:12px;">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">Afternoon observations:</div>
+          <textarea id="midday-note" placeholder="Enter your 12:45pm observations..."></textarea>
+          <button class="btn btn-primary" style="margin-top:6px;" onclick="saveMiddayNote()">Save Afternoon Note</button>
+        </div>
+      </div>
+    </div><!-- /tab-midday -->
+
+    <!-- PORTFOLIO TAB -->
+    <div id="tab-portfolio" class="tab-panel">
+      <div class="section">
+        <div class="section-title">Portfolio Tracker</div>
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-label">Starting Balance</div>
+            <div class="card-value val-accent">$500.00</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Cash Available</div>
+            <div class="card-value" id="port-cash">$—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Position Value</div>
+            <div class="card-value" id="port-pos-val">$—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Total Portfolio</div>
+            <div class="card-value" id="port-total">$—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Unrealised P&L</div>
+            <div class="card-value" id="port-unreal">$—</div>
+            <div class="card-sub" id="port-unreal-pct">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Realised P&L</div>
+            <div class="card-value" id="port-real">$0.00</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Win Rate</div>
+            <div class="card-value" id="port-winrate">—</div>
+            <div class="card-sub" id="port-wl">W:0 L:0</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Net After Tax</div>
+            <div class="card-value" id="port-net-tax">—</div>
+            <div class="card-sub" id="port-tax-sub">Est. 22% ST gains</div>
+          </div>
+        </div>
+
+        <!-- Win streak -->
+        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div id="win-streak-display"></div>
+        </div>
+
+        <!-- Account Adjustment -->
+        <div style="margin-top:14px;">
+          <div class="section-title">Account Adjustment</div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <button class="btn btn-buy" onclick="openAdjustPanel('add')">＋ Add Funds</button>
+            <button class="btn btn-sell" onclick="openAdjustPanel('withdraw')">－ Withdraw Funds</button>
+          </div>
+          <div id="adjust-panel" style="display:none;background:var(--bg4);border:1px solid var(--border2);border-radius:8px;padding:12px;">
+            <div id="adjust-panel-title" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;"></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+              <span style="font-size:12px;color:var(--text2);">Amount: $</span>
+              <input type="number" id="adjust-amount" placeholder="0.00" min="0.01" step="0.01" style="width:100px;" />
+            </div>
+            <input type="text" id="adjust-reason" placeholder="Reason (e.g. initial deposit, weekly contribution…)" style="margin-bottom:8px;" />
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary" onclick="applyAdjustment()">Apply</button>
+              <button class="btn btn-ghost" onclick="closeAdjustPanel()">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Open position detail -->
+        <div id="open-position-section" style="display:none;margin-top:12px;">
+          <div class="section-title">Open Position</div>
+          <div id="position-card" class="card-grid">
+            <!-- filled by JS -->
+          </div>
+          <div id="exit-triggers-area" style="margin-top:10px;"></div>
+          <button class="btn btn-sell btn-lg" id="sell-btn-label" onclick="initSell()">SELL PDBC</button>
+        </div>
+      </div>
+
+      <!-- BUY SECTION -->
+      <div class="section" id="buy-section">
+        <div class="section-title">Entry</div>
+
+        <!-- Regime override toggle -->
+        <div id="regime-banner" style="display:none;">
+          <span>⚡</span> Regime Override ACTIVE — minimum STANDARD confidence floor enforced
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle" id="regime-toggle" onclick="toggleRegime()"></div>
+          <span class="toggle-label">Regime override — new trend not yet in history database</span>
+        </div>
+
+        <!-- Confidence panel -->
+        <div id="confidence-panel">
+          <div class="conf-row">
+            <span class="conf-key">Confidence Level</span>
+            <span class="conf-val" id="conf-level">—</span>
+          </div>
+          <div class="conf-row">
+            <span class="conf-key">Pattern Similarity</span>
+            <span class="conf-val" id="conf-similarity">—%</span>
+          </div>
+          <div class="conf-row">
+            <span class="conf-key">Suggested Shares</span>
+            <span class="conf-val" id="conf-shares">—</span>
+          </div>
+          <div class="conf-row">
+            <span class="conf-key">Position Cost</span>
+            <span class="conf-val" id="conf-cost">—</span>
+          </div>
+          <div class="conf-row">
+            <span class="conf-key">Max Loss (this trade)</span>
+            <span class="conf-val val-red" id="conf-maxloss">—</span>
+          </div>
+          <div class="conf-row">
+            <span class="conf-key">3% Hard Limit Max Shares</span>
+            <span class="conf-val val-orange" id="conf-hardlimit">—</span>
+          </div>
+          <div class="conf-row">
+            <span class="conf-key">Stop-Loss Price</span>
+            <span class="conf-val val-red" id="conf-sl-price">—</span>
+          </div>
+          <div class="conf-row">
+            <span class="conf-key">Profit Target Price</span>
+            <span class="conf-val val-green" id="conf-pt-price">—</span>
+          </div>
+        </div>
+
+        <!-- Override panel -->
+        <div id="override-panel">
+          <div class="override-title">⚙ Manual Override</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+            <input type="number" class="input-sm" id="override-shares" placeholder="Shares" min="1" />
+            <span style="font-size:11px;color:var(--text2);">shares (max: <span id="override-max">—</span>)</span>
+          </div>
+          <textarea id="override-reason" placeholder="One sentence reason for override..." style="min-height:50px;"></textarea>
+        </div>
+
+        <button class="btn btn-buy btn-lg" id="buy-btn" onclick="initBuy()" disabled>
+          <span id="buy-btn-label">⊕ BUY PDBC</span>
+        </button>
+        <div id="buy-disabled-reason" style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center;"></div>
+
+      </div><!-- /buy-section -->
+    </div><!-- /tab-portfolio -->
+
+    <!-- JOURNAL TAB -->
+    <div id="tab-journal" class="tab-panel">
+      <div class="section">
+        <div class="section-title">Trade Journal</div>
+        <div id="journal-entries-list"></div>
+        <div id="friday-review-area"></div>
+      </div>
+    </div><!-- /tab-journal -->
+
+    <!-- TAX TAB -->
+    <div id="tab-tax" class="tab-panel">
+      <div class="section">
+        <div class="section-title">Tax Tracker</div>
+        <div class="card-grid" style="margin-bottom:12px;">
+          <div class="card">
+            <div class="card-label">Total Gains</div>
+            <div class="card-value val-green" id="tax-gains">$0.00</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Total Losses</div>
+            <div class="card-value val-red" id="tax-losses">$0.00</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Net Taxable</div>
+            <div class="card-value" id="tax-net">$0.00</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Est. Tax (22%)</div>
+            <div class="card-value val-orange" id="tax-owed">$0.00</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Take-Home Profit</div>
+            <div class="card-value val-green" id="tax-takehome">$0.00</div>
+          </div>
+        </div>
+        <div class="alert alert-blue" style="margin-bottom:12px;">
+          💡 Tax is not due until April. Keep the full balance compounding until then. Pay at year-end.
+        </div>
+        <div class="section-title">Monthly Breakdown</div>
+        <table class="tax-table" id="tax-monthly-table">
+          <thead><tr><th>Month</th><th>Gains</th><th>Losses</th><th>Net</th><th>Est. Tax</th></tr></thead>
+          <tbody id="tax-monthly-body"></tbody>
+        </table>
+      </div>
+    </div><!-- /tab-tax -->
+
+    <!-- WATCHLIST TAB -->
+    <div id="tab-watchlist" class="tab-panel">
+      <div class="section">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+          <div class="section-title" style="margin-bottom:0;">Signal Watchlist</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span id="wl-last-updated" style="font-size:10px;color:var(--text3);">—</span>
+            <span id="wl-refresh-icon" style="font-size:12px;color:var(--text3);">⟳</span>
+          </div>
+        </div>
+
+        <!-- Add ticker -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="wl-ticker-input" placeholder="Add ticker e.g. GLD" style="width:120px;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()" />
+          <button class="btn btn-primary" onclick="wlAddTicker()">+ Add</button>
+          <span style="font-size:11px;color:var(--text3);">Auto-refreshes every 60s</span>
+        </div>
+
+        <!-- Filter legend -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;font-size:10px;color:var(--text3);">
+          <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);"></span> All 6 filters pass</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--yellow);"></span> 4–5 filters pass</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);"></span> 3 or fewer pass</span>
+        </div>
+
+        <!-- Cards container -->
+        <div id="wl-cards-container"></div>
+      </div>
+    </div><!-- /tab-watchlist -->
+
+  </div><!-- /left-col -->
+
+  <!-- RIGHT COLUMN -->
+  <div id="right-col">
+
+    <!-- OCO REMINDER -->
+    <div id="oco-card" style="display:none;" class="section">
+      <div class="oco-title">🔔 OCO ORDER REQUIRED</div>
+      <div class="oco-price-row">
+        <div class="oco-price-box oco-stop">
+          <div class="oco-price-label">Stop-Loss</div>
+          <div class="oco-price-val" id="oco-stop-price">$—</div>
+        </div>
+        <div class="oco-price-box oco-target">
+          <div class="oco-price-label">Profit Target</div>
+          <div class="oco-price-val" id="oco-target-price">$—</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.8;margin-bottom:10px;">
+        1. Open Schwab app<br>
+        2. Go to Trade → <span id="oco-ticker-label">PDBC</span><br>
+        3. Select <strong style="color:var(--text);">Bracket Order / OCO</strong><br>
+        4. Enter stop price + limit price above<br>
+        5. Confirm before <strong style="color:var(--yellow);">1:00pm Pacific</strong>
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="confirmOCO()">
+        ✓ I have set my OCO on Schwab
+      </button>
+    </div>
+
+    <!-- QUICK STATS RIGHT PANEL -->
+    <div class="section">
+      <div class="section-title">Live Position</div>
+      <div id="right-position-area">
+        <div style="font-size:12px;color:var(--text3);padding:8px 0;">No open position</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Today's Checks</div>
+      <div id="today-checks-area">
+        <div style="font-size:12px;color:var(--text3);padding:4px 0;">—</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Recent Journal</div>
+      <div id="right-journal-recent"></div>
+    </div>
+
+    <div class="section" style="padding:12px 16px;">
+      <div class="section-title">Quick Reset</div>
+      <button class="btn btn-ghost" style="font-size:11px;" onclick="confirmReset()">Reset All Data</button>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px;">Clears all localStorage — use only for fresh start</div>
+    </div>
+
+  </div><!-- /right-col -->
+</div><!-- /main -->
+
+<script>
+// ============================================================
+// STATE & STORAGE
+// ============================================================
+const LS = {
+  get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} },
+  del: k => localStorage.removeItem(k)
+};
+
+function getState() {
+  return LS.get('pdbc_state') || {
+    cash: 500,
+    startBalance: 500,
+    position: null,  // { shares, entryPrice, entryDate, confidence, similarity, regimeOverride, oco_set }
+    trades: [],      // closed trades
+    journal: [],     // journal entries
+    priceHistory: [], // [{date,open,high,low,close}]
+    morningSnapshot: null,
+    morningCandidates: {},
+    winStreak: 0,
+    totalTradeCount: 0,
+    weekStartBalance: null,
+    monthStartBalance: null,
+    drawdownFlags: { daily: 0, dailyDate: '', weeklyFlagged: false, monthlyFlagged: false, totalFlagged: false },
+    regimeOverride: true,
+    ocoConfirmed: false,
+    primaryTicker: 'PDBC',
+    snapshotChoice: null,     // 'proceed' | 'skip' | null — resets each day
+    snapshotChoiceDate: '',   // date string 'YYYY-MM-DD'
+    settings: { regimeOverrideDefault: true }
+  };
+}
+
+function saveState(s) { LS.set('pdbc_state', s); }
+
+let state = getState();
+let currentPrice = 17.13;
+let priceHistory = []; // [{date,close}] last 60 days
+let ma5Arr = [];
+let ma20Arr = [];
+let dataSource = 'simulated';
+let consecutiveDaysAbove = 0;
+let gapDirection = 'unknown'; // 'widening', 'narrowing'
+let gapAccel = false;
+let marketTrend = 'BEAR';
+let patternScore = 0;
+let confidenceLevel = 'STANDARD';
+let suggestedShares = 14;
+let hardLimitShares = 0;
+let stopLossPrice = 0;
+let profitTargetPrice = 0;
+let allConditionsMet = false;
+let refreshInterval = null;
+let lastRefreshTime = null;
+let signalState = 'HOLD'; // STRONG_BUY, BUY, HOLD, SELL, STRONG_SELL
+
+// ============================================================
+// CLOCK & WINDOW DETECTION
+// ============================================================
+// Return a plain object with PT date/time fields, always correct regardless of device timezone
+function getPTParts(d) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    hour: 'numeric', minute: '2-digit', second: '2-digit',
+    hour12: true,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    weekday: 'short'
+  });
+  const parts = {};
+  fmt.formatToParts(d).forEach(p => { parts[p.type] = p.value; });
+  return parts;
+}
+
+function getPTHM(d) {
+  // Returns { h24, h12, m, s, ampm } in PT
+  const parts = getPTParts(d);
+  const h12 = parseInt(parts.hour, 10);
+  const ampm = parts.dayPeriod || '';
+  const h24 = ampm.toUpperCase().startsWith('P') ? (h12 === 12 ? 12 : h12 + 12) : (h12 === 12 ? 0 : h12);
+  return {
+    h24,
+    h12,
+    m: parseInt(parts.minute, 10),
+    s: parseInt(parts.second, 10),
+    ampm: ampm.toUpperCase().replace(/\s/g,''),
+    year: parseInt(parts.year, 10),
+    month: parseInt(parts.month, 10),
+    day: parseInt(parts.day, 10),
+    weekday: parts.weekday
+  };
+}
+
+function updateClock() {
+  const now = new Date();
+  const pt = getPTHM(now);
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('clock').textContent =
+    `${pad(pt.h12)}:${pad(pt.m)}:${pad(pt.s)} ${pt.ampm} PT`;
+
+  const h = pt.h24, m = pt.m;
+  const indicator = document.getElementById('check-window-indicator');
+  if ((h === 5 && m >= 45) || h === 6) {
+    indicator.textContent = '🌅 MORNING WINDOW (6:15am)';
+    indicator.className = 'check-window-indicator window-morning';
+  } else if ((h === 12 && m >= 30) || (h === 13 && m <= 15)) {
+    indicator.textContent = '☀️ MIDDAY WINDOW (12:45pm)';
+    indicator.className = 'check-window-indicator window-midday';
+  } else {
+    indicator.textContent = h < 6 ? 'Market Pre-Open' : h < 9.5 ? '🌅 Morning' : h >= 13 ? 'Market Afternoon' : 'Market Hours';
+    indicator.className = 'check-window-indicator window-other';
+  }
+}
+
+function getPTNow() {
+  // Returns a plain Date whose UTC fields equal PT date/time (used for comparisons only)
+  const now = new Date();
+  const pt = getPTHM(now);
+  return new Date(Date.UTC(pt.year, pt.month - 1, pt.day, pt.h24, pt.m, pt.s));
+}
+
+function isPTMorningWindow() {
+  const now = new Date();
+  const pt = getPTHM(now);
+  return (pt.h24 === 5 && pt.m >= 45) || pt.h24 === 6;
+}
+
+function isPTMiddayWindow() {
+  const now = new Date();
+  const pt = getPTHM(now);
+  return (pt.h24 === 12 && pt.m >= 30) || (pt.h24 === 13 && pt.m <= 15);
+}
+
+function getTodayPT() {
+  const now = new Date();
+  const pt = getPTHM(now);
+  return `${pt.year}-${String(pt.month).padStart(2,'0')}-${String(pt.day).padStart(2,'0')}`;
+}
+
+function isFriday() {
+  const now = new Date();
+  const pt = getPTParts(now);
+  return pt.weekday === 'Fri';
+}
+
+// ============================================================
+// PRICE FETCHING
+// ============================================================
+async function fetchPrice() {
+  setRefreshing(true);
+  let price = null;
+  let src = 'simulated';
+
+  // Try Yahoo via allorigins
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${state.primaryTicker}?interval=1d&range=3mo`;
+    const proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+    const r = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
+    if (r.ok) {
+      const j = await r.json();
+      const data = JSON.parse(j.contents);
+      const result = data?.chart?.result?.[0];
+      if (result) {
+        const closes = result.indicators?.quote?.[0]?.close || [];
+        const timestamps = result.timestamp || [];
+        if (closes.length > 0) {
+          const validCloses = closes.filter(c => c != null);
+          price = validCloses[validCloses.length - 1];
+          src = 'yahoo';
+          // Build history
+          const hist = [];
+          for (let i = 0; i < timestamps.length; i++) {
+            if (closes[i] != null) {
+              hist.push({ date: new Date(timestamps[i]*1000).toISOString().slice(0,10), close: closes[i] });
+            }
+          }
+          if (hist.length >= 5) {
+            priceHistory = hist.slice(-60);
+            state.priceHistory = priceHistory;
+          }
+        }
+      }
+    }
+  } catch(e) {}
+
+  // Try Polygon if Yahoo failed
+  if (!price) {
+    try {
+      const end = new Date();
+      const start = new Date(end); start.setDate(start.getDate() - 90);
+      const fmt = d => d.toISOString().slice(0,10);
+      const url = `https://api.polygon.io/v2/aggs/ticker/${state.primaryTicker}/range/1/day/${fmt(start)}/${fmt(end)}?adjusted=true&sort=asc&limit=120&apiKey=NXEdxpDNox8VdPWbTz__W3PotLSNLFtz`;
+      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (r.ok) {
+        const j = await r.json();
+        if (j.results && j.results.length > 0) {
+          const results = j.results;
+          price = results[results.length - 1].c;
+          src = 'polygon';
+          priceHistory = results.map(d => ({ date: new Date(d.t).toISOString().slice(0,10), close: d.c })).slice(-60);
+          state.priceHistory = priceHistory;
+        }
+      }
+    } catch(e) {}
+  }
+
+  // Simulated fallback
+  if (!price) {
+    price = getSimulatedPrice();
+    src = 'simulated';
+    if (priceHistory.length === 0) buildSimHistory();
+  }
+
+  currentPrice = price;
+  dataSource = src;
+  setRefreshing(false);
+  updateDataSourceBadge();
+  recalcMAs();
+  updateAll();
+  checkMorningSnapshot();
+  lastRefreshTime = new Date();
+  document.getElementById('last-updated').textContent = `Updated ${lastRefreshTime.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
+}
+
+function getSimulatedPrice() {
+  const base = 17.13;
+  const volatility = 0.012;
+  const trend = 0.0003;
+  if (priceHistory.length === 0) return base;
+  const last = priceHistory[priceHistory.length-1]?.close || base;
+  const change = (Math.random() - 0.48) * volatility + trend;
+  return Math.max(10, Math.min(22, last * (1 + change)));
+}
+
+function buildSimHistory() {
+  const base = 17.13;
+  let price = base * 0.92;
+  priceHistory = [];
+  const now = new Date();
+  for (let i = 59; i >= 0; i--) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const vol = 0.013;
+    const trend = 0.0004;
+    const change = (Math.random() - 0.47) * vol + trend;
+    price = Math.max(12, Math.min(18.5, price * (1+change)));
+    priceHistory.push({ date: d.toISOString().slice(0,10), close: parseFloat(price.toFixed(4)) });
+  }
+  state.priceHistory = priceHistory;
+}
+
+function setRefreshing(v) {
+  const icon = document.getElementById('refresh-icon');
+  icon.innerHTML = v ? '<span class="spin">⟳</span>' : '⟳';
+}
+
+function updateDataSourceBadge() {
+  const b = document.getElementById('data-source-badge');
+  if (dataSource === 'yahoo') {
+    b.textContent = 'LIVE YAHOO';
+    b.className = 'data-source-badge src-yahoo';
+  } else if (dataSource === 'polygon') {
+    b.textContent = 'LIVE POLYGON 15min';
+    b.className = 'data-source-badge src-polygon';
+  } else {
+    b.textContent = 'SIMULATED';
+    b.className = 'data-source-badge src-simulated';
+  }
+}
+
+// ============================================================
+// MA CALCULATIONS
+// ============================================================
+function calcMA(arr, period) {
+  const result = [];
+  for (let i = 0; i < arr.length; i++) {
+    if (i < period - 1) { result.push(null); continue; }
+    const slice = arr.slice(i - period + 1, i + 1);
+    result.push(slice.reduce((a,b) => a+b, 0) / period);
+  }
+  return result;
+}
+
+function recalcMAs() {
+  if (priceHistory.length < 5) {
+    buildSimHistory();
+  }
+
+  // Add current price as latest data point if needed
+  const closes = priceHistory.map(d => d.close);
+  if (closes.length > 0) {
+    closes[closes.length-1] = currentPrice; // update last
+  }
+
+  ma5Arr = calcMA(closes, 5);
+  ma20Arr = calcMA(closes, 20);
+
+  // Count consecutive days MA5 > MA20
+  let count = 0;
+  const n = closes.length;
+  for (let i = n-1; i >= 0; i--) {
+    if (ma5Arr[i] !== null && ma20Arr[i] !== null && ma5Arr[i] > ma20Arr[i]) {
+      count++;
+    } else {
+      break;
+    }
+  }
+  consecutiveDaysAbove = count;
+
+  // Gap direction
+  const gapHistory = [];
+  for (let i = 0; i < n; i++) {
+    if (ma5Arr[i] != null && ma20Arr[i] != null) {
+      gapHistory.push(ma5Arr[i] - ma20Arr[i]);
+    }
+  }
+
+  if (gapHistory.length >= 3) {
+    const recent = gapHistory[gapHistory.length-1];
+    const prev = gapHistory[gapHistory.length-2];
+    const prev2 = gapHistory[gapHistory.length-3];
+    const widening = recent > prev;
+    const accel = widening && (recent - prev) > (prev - prev2);
+    gapDirection = widening ? 'widening' : 'narrowing';
+    gapAccel = accel;
+  }
+
+  // Market trend: use MA20 slope
+  if (ma20Arr.length >= 5) {
+    const validMA20 = ma20Arr.filter(v => v !== null);
+    if (validMA20.length >= 5) {
+      const slope = validMA20[validMA20.length-1] - validMA20[validMA20.length-5];
+      marketTrend = slope >= 0 ? 'BULL' : 'BEAR';
+    }
+  }
+
+  // Pattern score
+  patternScore = calcPatternScore();
+
+  // Signal state
+  signalState = calcSignalState();
+
+  // Confidence & position sizing
+  calcConfidenceAndSizing();
+}
+
+function calcPatternScore() {
+  const wins = state.trades.filter(t => t.pnl > 0);
+  if (wins.length === 0) return state.regimeOverride ? 65 : 50;
+
+  const avgConsec = wins.reduce((a,t) => a + (t.entryConsecDays||0), 0) / wins.length;
+  const avgGapSize = wins.reduce((a,t) => a + Math.abs(t.entryGap||0), 0) / wins.length;
+
+  const curGap = (ma5Arr[ma5Arr.length-1]||0) - (ma20Arr[ma20Arr.length-1]||0);
+  const consecSim = Math.max(0, 100 - Math.abs(consecutiveDaysAbove - avgConsec) * 10);
+  const gapSim = avgGapSize > 0 ? Math.max(0, 100 - Math.abs(curGap - avgGapSize) / avgGapSize * 100) : 50;
+
+  return Math.round((consecSim * 0.6 + gapSim * 0.4));
+}
+
+function calcSignalState() {
+  const ma5 = ma5Arr[ma5Arr.length-1];
+  const ma20 = ma20Arr[ma20Arr.length-1];
+  if (!ma5 || !ma20) return 'HOLD';
+
+  const gap = ma5 - ma20;
+  const gapPct = Math.abs(gap) / ma20 * 100;
+
+  // Check if MA5 was below MA20 last period (signal flip)
+  const prevLen = ma5Arr.length - 2;
+  const prevMA5 = prevLen >= 0 ? ma5Arr[prevLen] : null;
+  const prevMA20 = prevLen >= 0 ? ma20Arr[prevLen] : null;
+
+  if (ma5 < ma20) {
+    // Count consecutive days below
+    let below = 0;
+    for (let i = ma5Arr.length-1; i >= 0; i--) {
+      if (ma5Arr[i] !== null && ma20Arr[i] !== null && ma5Arr[i] < ma20Arr[i]) below++;
+      else break;
+    }
+    return below >= 2 ? 'STRONG_SELL' : 'SELL';
+  }
+
+  if (gapPct < 0.5) return 'HOLD';
+
+  if (consecutiveDaysAbove >= 3 && gapDirection === 'widening' && gapAccel && marketTrend === 'BULL') {
+    return 'STRONG_BUY';
+  }
+  if (consecutiveDaysAbove >= 1 && gapDirection === 'widening') {
+    return 'BUY';
+  }
+  return 'HOLD';
+}
+
+function calcConfidenceAndSizing() {
+  const portfolio = getPortfolioValue();
+  const effectiveScore = state.regimeOverride ? Math.max(patternScore, 60) : patternScore;
+
+  let conf, riskPct;
+  if (effectiveScore >= 80 && consecutiveDaysAbove >= 5 && gapDirection === 'widening') {
+    conf = 'HIGH'; riskPct = 0.025;
+  } else if (effectiveScore >= 50) {
+    conf = 'STANDARD'; riskPct = 0.015;
+  } else {
+    conf = 'LOW'; riskPct = 0.01;
+  }
+
+  if (state.regimeOverride && conf === 'LOW') { conf = 'STANDARD'; riskPct = 0.015; }
+
+  // Win streak boost
+  let streakBoost = 1;
+  if (state.winStreak >= 3) streakBoost = 1.15;
+
+  const maxLoss = portfolio * riskPct * streakBoost;
+  const stopLossDist = currentPrice * 0.03;
+  const shares = Math.floor(maxLoss / stopLossDist);
+
+  // Hard limit 3%
+  const hardMaxLoss = portfolio * 0.03;
+  const hardMaxShares = Math.floor(hardMaxLoss / stopLossDist);
+
+  confidenceLevel = conf;
+  suggestedShares = Math.max(1, shares);
+  hardLimitShares = Math.max(1, hardMaxShares);
+  stopLossPrice = parseFloat((currentPrice * 0.97).toFixed(4));
+  profitTargetPrice = parseFloat((currentPrice * 1.06).toFixed(4));
+
+  allConditionsMet = checkAllConditions();
+}
+
+function checkAllConditions() {
+  const ma5 = ma5Arr[ma5Arr.length-1];
+  const ma20 = ma20Arr[ma20Arr.length-1];
+  if (!ma5 || !ma20) return false;
+  if (ma5 <= ma20) return false;
+  if (consecutiveDaysAbove < 3) return false;
+  if (gapDirection !== 'widening') return false;
+  if (marketTrend !== 'BULL') return false;
+  if (state.position) return false; // already in position
+  if (isDrawdownBlocked()) return false;
+  // Check daily loss limit
+  if (state.drawdownFlags.daily >= 2 && state.drawdownFlags.dailyDate === getTodayPT()) return false;
+  // Skip today chosen
+  if (state.snapshotChoice === 'skip' && state.snapshotChoiceDate === getTodayPT()) return false;
+  return true;
+}
+
+function isDrawdownBlocked() {
+  return state.drawdownFlags.totalFlagged || state.drawdownFlags.monthlyFlagged || state.drawdownFlags.weeklyFlagged;
+}
+
+function getPortfolioValue() {
+  const posVal = state.position ? state.position.shares * currentPrice : 0;
+  return state.cash + posVal;
+}
+
+// ============================================================
+// SIGNAL & DISPLAY UPDATE
+// ============================================================
+function updateAll() {
+  updateSignalBadge();
+  updatePriceDisplay();
+  updateMADisplay();
+  updatePortfolioDisplay();
+  updateSummaryRow();
+  updateRiskGauges();
+  updateDrawdownStatus();
+  updatePositionDisplay();
+  updateBuySection();
+  updateAlertsArea();
+  updateMiddayTab();
+  updateMorningTab();
+  renderChart();
+  updateRightPanel();
+  updateJournalDisplay();
+  updateTaxDisplay();
+  checkExitTriggers();
+}
+
+function updateSummaryRow() {
+  const ma5  = ma5Arr[ma5Arr.length - 1];
+  const ma20 = ma20Arr[ma20Arr.length - 1];
+  const gap  = (ma5 && ma20) ? ma5 - ma20 : null;
+
+  // ── Card 1: PORTFOLIO ──
+  const total = getPortfolioValue();
+  const posVal = state.position ? state.position.shares * currentPrice : 0;
+  const totalEl = document.getElementById('sc-total');
+  totalEl.textContent = '$' + total.toFixed(2);
+  totalEl.className = 'sum-card-main ' + (total >= state.startBalance ? 'val-green' : 'val-red');
+
+  document.getElementById('sc-start').textContent = '$' + state.startBalance.toFixed(2);
+  document.getElementById('sc-cash').textContent  = '$' + state.cash.toFixed(2);
+
+  const posEl = document.getElementById('sc-pos');
+  if (state.position) {
+    posEl.textContent = '$' + posVal.toFixed(2);
+    posEl.className = 'sum-sub-val val-blue';
+  } else {
+    posEl.textContent = 'none';
+    posEl.className = 'sum-sub-val';
+    posEl.style.color = 'var(--text3)';
+  }
+
+  // ── Card 2: P&L ──
+  const realPnl  = state.trades.reduce((a, t) => a + t.pnl, 0);
+  const unreal   = state.position ? (currentPrice - state.position.entryPrice) * state.position.shares : 0;
+  const wins     = state.trades.filter(t => t.pnl > 0).length;
+  const losses   = state.trades.filter(t => t.pnl <= 0).length;
+  const totalTr  = state.trades.length;
+  const wr       = totalTr > 0 ? (wins / totalTr * 100).toFixed(1) : null;
+
+  const pnlEl = document.getElementById('sc-pnl');
+  pnlEl.textContent = (realPnl >= 0 ? '+' : '') + '$' + realPnl.toFixed(2);
+  pnlEl.className = 'sum-card-main ' + (realPnl >= 0 ? 'val-green' : 'val-red');
+
+  const unrealEl = document.getElementById('sc-unreal');
+  unrealEl.textContent = (unreal >= 0 ? '+' : '') + '$' + unreal.toFixed(2);
+  unrealEl.className = 'sum-sub-val ' + (unreal > 0 ? 'val-green' : unreal < 0 ? 'val-red' : '');
+
+  const wrEl = document.getElementById('sc-wr');
+  if (wr !== null) {
+    wrEl.textContent  = wr + '%';
+    wrEl.className    = 'sum-sub-val ' + (parseFloat(wr) >= 70 ? 'val-green' : parseFloat(wr) >= 50 ? 'val-yellow' : 'val-red');
+  } else {
+    wrEl.textContent = '—';
+    wrEl.className   = 'sum-sub-val';
+  }
+  document.getElementById('sc-wl').textContent = `W:${wins} L:${losses}`;
+
+  // ── Card 3: TAX TRACKER ──
+  const gains      = state.trades.filter(t => t.pnl > 0).reduce((a, t) => a + t.pnl, 0);
+  const lossTotal  = Math.abs(state.trades.filter(t => t.pnl <= 0).reduce((a, t) => a + t.pnl, 0));
+  const netTaxable = Math.max(0, gains - lossTotal);
+  const taxOwed    = netTaxable * 0.22;
+  const takeHome   = realPnl - taxOwed;
+
+  const thEl = document.getElementById('sc-takehome');
+  thEl.textContent = (takeHome >= 0 ? '+' : '') + '$' + takeHome.toFixed(2);
+  thEl.className = 'sum-card-main ' + (takeHome >= 0 ? 'val-green' : 'val-red');
+
+  document.getElementById('sc-gains').textContent   = '+$' + gains.toFixed(2);
+  document.getElementById('sc-losses').textContent  = '-$' + lossTotal.toFixed(2);
+  const ntEl = document.getElementById('sc-nettax');
+  ntEl.textContent = '$' + netTaxable.toFixed(2);
+  ntEl.className = 'sum-sub-val ' + (netTaxable > 0 ? 'val-orange' : '');
+  document.getElementById('sc-taxowed').textContent = '$' + taxOwed.toFixed(2);
+
+  // ── Card 4: SIGNAL & CONFIDENCE ──
+  const sigBadge = document.getElementById('sc-signal-badge');
+  const sigConfigs = {
+    'STRONG_BUY':  { dot: '#00ff88', text: 'STRONG BUY',  cls: 'sum-signal-text badge-strong-buy' },
+    'BUY':         { dot: '#44ffaa', text: 'BUY',          cls: 'sum-signal-text badge-buy'        },
+    'HOLD':        { dot: '#ffcc00', text: 'HOLD',         cls: 'sum-signal-text badge-hold'       },
+    'SELL':        { dot: '#ff8833', text: 'SELL',         cls: 'sum-signal-text badge-sell'       },
+    'STRONG_SELL': { dot: '#ff3355', text: 'STRONG SELL',  cls: 'sum-signal-text badge-strong-sell'},
+  };
+  const scfg = sigConfigs[signalState] || sigConfigs['HOLD'];
+  sigBadge.className = scfg.cls;
+  sigBadge.innerHTML = `<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${scfg.dot};box-shadow:0 0 6px ${scfg.dot}88;flex-shrink:0;vertical-align:middle;margin-right:6px;margin-bottom:1px;"></span>${scfg.text}`;
+
+  const mktEl = document.getElementById('sc-market');
+  mktEl.textContent = marketTrend;
+  mktEl.className   = 'sum-sub-val ' + (marketTrend === 'BULL' ? 'val-green' : 'val-red');
+
+  const gapEl = document.getElementById('sc-gap');
+  if (gap !== null) {
+    const dirLabel = gapDirection === 'widening' ? '↑ WIDENING' : gapDirection === 'narrowing' ? '↓ NARROWING' : '→ FLAT';
+    gapEl.textContent = `${gap >= 0 ? '+' : ''}$${gap.toFixed(4)} ${dirLabel}`;
+    gapEl.className   = 'sum-sub-val ' + (gapDirection === 'widening' ? 'val-green' : gapDirection === 'narrowing' ? 'val-red' : '');
+  } else {
+    gapEl.textContent = '—';
+    gapEl.className   = 'sum-sub-val';
+  }
+
+  const consecEl = document.getElementById('sc-consec');
+  consecEl.textContent = consecutiveDaysAbove + (consecutiveDaysAbove === 1 ? ' day' : ' days');
+  consecEl.className   = 'sum-sub-val ' + (consecutiveDaysAbove >= 3 ? 'val-green' : consecutiveDaysAbove > 0 ? 'val-yellow' : 'val-red');
+
+  const confColors = { 'HIGH': 'val-green', 'STANDARD': 'val-blue', 'LOW': 'val-yellow' };
+  const confEl = document.getElementById('sc-conf');
+  let confText = confidenceLevel || '—';
+  if (state.trades.length === 0) {
+    confText += ' · CALIBRATING';
+    confEl.innerHTML = `<span class="${confColors[confidenceLevel] || ''}" style="font-weight:700;">${confidenceLevel || '—'}</span> <span style="color:var(--text3);font-size:10px;font-weight:600;">CALIBRATING</span>`;
+  } else {
+    const regOverride = state.regimeOverride
+      ? ` <span style="color:var(--orange);font-size:10px;font-weight:700;">OVERRIDE</span>`
+      : '';
+    confEl.innerHTML = `<span class="${confColors[confidenceLevel] || ''}" style="font-weight:700;">${confidenceLevel}</span> <span style="color:var(--text3);font-size:10px;">${patternScore}%</span>${regOverride}`;
+  }
+  confEl.className = 'sum-sub-val';
+}
+
+function updateSignalBadge() {
+  const badge = document.getElementById('signal-badge');
+  const actionText = document.getElementById('signal-action-text');
+  const configs = {
+    'STRONG_BUY': { text: '🚀 STRONG BUY', cls: 'badge-strong-buy', action: `STRONG BUY — MA5 has been above MA20 for ${consecutiveDaysAbove} day${consecutiveDaysAbove!==1?'s':''} with an accelerating widening gap. Both 6:15am and 12:45pm checks required before entering.` },
+    'BUY': { text: '✅ BUY', cls: 'badge-buy', action: `BUY — MA5 is above MA20 for ${consecutiveDaysAbove} day${consecutiveDaysAbove!==1?'s':''}. Gap is ${gapDirection}. ${consecutiveDaysAbove < 3 ? 'Need '+(3-consecutiveDaysAbove)+' more day(s) for full confirmation.' : 'Three-day rule met. Confirm both checks before entering.'}` },
+    'HOLD': { text: '⏸ HOLD', cls: 'badge-hold', action: 'HOLD — MA5 and MA20 are within 0.5% or gap direction is unclear. No action today. Wait for a clearer signal.' },
+    'SELL': { text: '⚠️ SELL', cls: 'badge-sell', action: 'SELL — MA5 has crossed below MA20 or gap is narrowing significantly. If you hold a position, prepare to act.' },
+    'STRONG_SELL': { text: '🔴 STRONG SELL', cls: 'badge-strong-sell', action: 'STRONG SELL — signal has reversed. If you hold a position cancel your OCO on Schwab and sell manually NOW.' }
+  };
+  const cfg = configs[signalState] || configs['HOLD'];
+  badge.textContent = cfg.text;
+  badge.className = 'signal-badge ' + cfg.cls;
+  actionText.textContent = cfg.action;
+}
+
+function updatePriceDisplay() {
+  document.getElementById('price-display').textContent = '$' + currentPrice.toFixed(4);
+  if (priceHistory.length >= 2) {
+    const prev = priceHistory[priceHistory.length-2]?.close || currentPrice;
+    const chg = currentPrice - prev;
+    const chgPct = (chg / prev * 100).toFixed(2);
+    const el = document.getElementById('price-change-display');
+    el.textContent = `${chg >= 0 ? '+' : ''}$${chg.toFixed(4)} (${chgPct}%)`;
+    el.className = chg >= 0 ? 'card-sub val-green' : 'card-sub val-red';
+  }
+}
+
+function updateMADisplay() {
+  const ma5 = ma5Arr[ma5Arr.length-1];
+  const ma20 = ma20Arr[ma20Arr.length-1];
+  const curGap = ma5 && ma20 ? ma5 - ma20 : 0;
+  const curGapPct = ma20 ? (curGap / ma20 * 100) : 0;
+
+  document.getElementById('ma5-display').textContent = ma5 ? '$'+ma5.toFixed(4) : '$—';
+  document.getElementById('ma20-display').textContent = ma20 ? '$'+ma20.toFixed(4) : '$—';
+  document.getElementById('ma-gap-display').textContent = ma5 && ma20 ? `$${curGap.toFixed(4)}` : '—';
+  document.getElementById('ma-gap-display').className = 'card-value ' + (curGap > 0 ? 'val-green' : curGap < 0 ? 'val-red' : '');
+
+  const dirArrow = gapDirection === 'widening' ? '↑ WIDENING' + (gapAccel ? ' ↑↑' : '') : gapDirection === 'narrowing' ? '↓ NARROWING' : '→ FLAT';
+  document.getElementById('ma-gap-dir').textContent = `${dirArrow} (${curGapPct.toFixed(2)}%)`;
+
+  const cdLabel = document.getElementById('consec-days-label');
+  cdLabel.textContent = consecutiveDaysAbove;
+  cdLabel.className = consecutiveDaysAbove >= 3 ? 'val-green' : consecutiveDaysAbove > 0 ? 'val-yellow' : 'val-red';
+
+  const cdBar = document.getElementById('consec-days-bar');
+  cdBar.style.width = Math.min(100, (consecutiveDaysAbove / 10) * 100) + '%';
+  cdBar.style.background = consecutiveDaysAbove >= 3 ? 'var(--green)' : consecutiveDaysAbove > 0 ? 'var(--yellow)' : 'var(--red)';
+
+  // Gap direction label
+  const gdEl = document.getElementById('gap-dir-label');
+  gdEl.textContent = gapDirection === 'widening' ? `↑ Widening${gapAccel?' (accel)':''}` : gapDirection === 'narrowing' ? '↓ Narrowing' : '→ Flat';
+  gdEl.className = gapDirection === 'widening' ? 'val-green' : 'val-red';
+
+  // 3-day rule
+  const tdEl = document.getElementById('three-day-status');
+  if (consecutiveDaysAbove >= 3) {
+    tdEl.textContent = `✅ MET (${consecutiveDaysAbove} days)`;
+    tdEl.className = 'val-green';
+  } else {
+    tdEl.textContent = `${consecutiveDaysAbove}/3 days`;
+    tdEl.className = 'val-yellow';
+  }
+
+  // Market trend
+  const mtEl = document.getElementById('market-trend-label');
+  mtEl.textContent = marketTrend;
+  mtEl.className = marketTrend === 'BULL' ? 'val-green' : 'val-red';
+
+  // Pattern score
+  const psEl = document.getElementById('pattern-score-label');
+  psEl.textContent = patternScore + '%';
+  psEl.className = patternScore >= 80 ? 'val-green' : patternScore >= 50 ? 'val-yellow' : 'val-red';
+}
+
+function updatePortfolioDisplay() {
+  const posVal = state.position ? state.position.shares * currentPrice : 0;
+  const total = state.cash + posVal;
+  const realPnl = state.trades.reduce((a,t) => a + t.pnl, 0);
+  const wins = state.trades.filter(t => t.pnl > 0).length;
+  const losses = state.trades.filter(t => t.pnl <= 0).length;
+  const wr = state.trades.length > 0 ? (wins / state.trades.length * 100).toFixed(1) : '—';
+  const gains = state.trades.filter(t=>t.pnl>0).reduce((a,t)=>a+t.pnl,0);
+  const lossesTotal = state.trades.filter(t=>t.pnl<=0).reduce((a,t)=>a+t.pnl,0);
+  const netTax = Math.max(0, gains + lossesTotal);
+  const tax = netTax * 0.22;
+  const netTake = realPnl - tax;
+
+  document.getElementById('port-cash').textContent = '$' + state.cash.toFixed(2);
+  document.getElementById('port-cash').className = 'card-value ' + (state.cash > 450 ? 'val-green' : 'val-yellow');
+  document.getElementById('port-pos-val').textContent = '$' + posVal.toFixed(2);
+  document.getElementById('port-total').textContent = '$' + total.toFixed(2);
+  document.getElementById('port-total').className = 'card-value ' + (total >= 500 ? 'val-green' : 'val-red');
+  document.getElementById('port-real').textContent = (realPnl >= 0 ? '+' : '') + '$' + realPnl.toFixed(2);
+  document.getElementById('port-real').className = 'card-value ' + (realPnl >= 0 ? 'val-green' : 'val-red');
+  document.getElementById('port-winrate').textContent = wr === '—' ? '—' : wr + '%';
+  document.getElementById('port-wl').textContent = `W:${wins} L:${losses}`;
+  document.getElementById('port-net-tax').textContent = netTake >= 0 ? '+$' + netTake.toFixed(2) : '-$' + Math.abs(netTake).toFixed(2);
+  document.getElementById('port-tax-sub').textContent = `Tax est: $${tax.toFixed(2)}`;
+
+  if (state.position) {
+    const unreal = (currentPrice - state.position.entryPrice) * state.position.shares;
+    const unrealPct = ((currentPrice - state.position.entryPrice) / state.position.entryPrice * 100).toFixed(2);
+    document.getElementById('port-unreal').textContent = (unreal >= 0 ? '+' : '') + '$' + unreal.toFixed(2);
+    document.getElementById('port-unreal').className = 'card-value ' + (unreal >= 0 ? 'val-green' : 'val-red');
+    document.getElementById('port-unreal-pct').textContent = (unreal >= 0 ? '+' : '') + unrealPct + '%';
+  } else {
+    document.getElementById('port-unreal').textContent = '$0.00';
+    document.getElementById('port-unreal').className = 'card-value val-accent';
+    document.getElementById('port-unreal-pct').textContent = 'no open position';
+  }
+
+  // Win streak
+  const wsEl = document.getElementById('win-streak-display');
+  if (state.winStreak >= 3) {
+    wsEl.innerHTML = `<span class="win-streak-badge">🔥 WIN STREAK: ${state.winStreak} — Position size +15%</span>`;
+  } else if (state.winStreak > 0) {
+    wsEl.innerHTML = `<span class="tag tag-yellow">Win streak: ${state.winStreak} (need 3 for boost)</span>`;
+  } else {
+    wsEl.innerHTML = '';
+  }
+}
+
+function updateRiskGauges() {
+  const portfolio = getPortfolioValue();
+  if (!state.position) {
+    // Calculate trade risk for suggested position
+    const cost = suggestedShares * currentPrice;
+    const maxLoss = suggestedShares * currentPrice * 0.03;
+    const tradeRisk = portfolio > 0 ? (maxLoss / portfolio * 100) : 0;
+    setGauge('trade', tradeRisk, 3);
+    setGauge('open', 0, 5);
+  } else {
+    const entryRisk = (state.position.entryPrice - stopLossPrice) * state.position.shares;
+    const tradeRisk = portfolio > 0 ? (entryRisk / portfolio * 100) : 0;
+    const openRisk = tradeRisk;
+    setGauge('trade', tradeRisk, 3);
+    setGauge('open', openRisk, 5);
+  }
+
+  const wins = state.trades.filter(t => t.pnl > 0).length;
+  const wr = state.trades.length > 0 ? (wins / state.trades.length * 100) : 0;
+  const wrEl = document.getElementById('gauge-winrate-val');
+  wrEl.textContent = state.trades.length > 0 ? wr.toFixed(1) + '%' : '—';
+  wrEl.className = 'gauge-val ' + (wr >= 70 ? 'val-green' : wr >= 50 ? 'val-yellow' : 'val-red');
+  const wrFill = document.getElementById('gauge-winrate-fill');
+  wrFill.style.width = Math.min(100, wr) + '%';
+  wrFill.style.background = wr >= 70 ? 'var(--green)' : wr >= 50 ? 'var(--yellow)' : 'var(--red)';
+}
+
+function setGauge(id, val, threshold) {
+  const fill = document.getElementById(`gauge-${id}-fill`);
+  const valEl = document.getElementById(`gauge-${id}-val`);
+  const pct = Math.min(100, (val / (threshold * 1.5)) * 100);
+  fill.style.width = pct + '%';
+  fill.style.background = val < threshold * 0.67 ? 'var(--green)' : val < threshold ? 'var(--yellow)' : 'var(--red)';
+  valEl.textContent = val.toFixed(1) + '%';
+  valEl.className = 'gauge-val ' + (val < threshold * 0.67 ? 'val-green' : val < threshold ? 'val-yellow' : 'val-red');
+}
+
+function updateDrawdownStatus() {
+  const portfolio = getPortfolioValue();
+  const daily = state.drawdownFlags.daily >= 2 && state.drawdownFlags.dailyDate === getTodayPT();
+  const weekly = state.drawdownFlags.weeklyFlagged;
+  const monthly = state.drawdownFlags.monthlyFlagged;
+  const total = portfolio < 400;
+
+  const statuses = [
+    { label: 'Daily (2 losses)', breach: daily, warn: state.drawdownFlags.daily === 1 && state.drawdownFlags.dailyDate === getTodayPT() },
+    { label: 'Weekly (6%)', breach: weekly, warn: false },
+    { label: 'Monthly (10%)', breach: monthly, warn: false },
+    { label: 'Total ($400)', breach: total, warn: portfolio < 430 }
+  ];
+
+  const row = document.getElementById('dd-status-row');
+  row.innerHTML = statuses.map(s => {
+    const cls = s.breach ? 'dd-breach' : s.warn ? 'dd-warn' : 'dd-safe';
+    const icon = s.breach ? '🔴' : s.warn ? '🟡' : '🟢';
+    return `<span class="dd-badge ${cls}">${icon} ${s.label}</span>`;
+  }).join('');
+
+  // Check total drawdown
+  if (total && !state.drawdownFlags.totalFlagged) {
+    state.drawdownFlags.totalFlagged = true;
+    saveState(state);
+    document.getElementById('blocking-overlay').style.display = 'flex';
+  }
+}
+
+function updatePositionDisplay() {
+  const posSection = document.getElementById('open-position-section');
+  if (!state.position) {
+    posSection.style.display = 'none';
+    return;
+  }
+  posSection.style.display = 'block';
+
+  const p = state.position;
+  const curPnl = (currentPrice - p.entryPrice) * p.shares;
+  const curPnlPct = ((currentPrice - p.entryPrice) / p.entryPrice * 100).toFixed(2);
+  const sl = p.entryPrice * 0.97;
+  const pt = p.entryPrice * 1.06;
+  const distToSL = currentPrice - sl;
+  const distToPT = pt - currentPrice;
+  const distToSLPct = (distToSL / currentPrice * 100).toFixed(2);
+  const distToPTPct = (distToPT / currentPrice * 100).toFixed(2);
+  const holdDays = Math.floor((Date.now() - new Date(p.entryDate).getTime()) / 86400000);
+
+  document.getElementById('position-card').innerHTML = `
+    <div class="card">
+      <div class="card-label">Shares</div>
+      <div class="card-value val-accent">${p.shares}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Entry Price</div>
+      <div class="card-value">$${p.entryPrice.toFixed(4)}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Current P&L</div>
+      <div class="card-value ${curPnl >= 0 ? 'val-green' : 'val-red'}">${curPnl >= 0 ? '+' : ''}$${curPnl.toFixed(2)}</div>
+      <div class="card-sub">${curPnl >= 0 ? '+' : ''}${curPnlPct}%</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Hold Days</div>
+      <div class="card-value">${holdDays}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">To Stop-Loss</div>
+      <div class="card-value val-red">-$${Math.abs(distToSL).toFixed(2)}</div>
+      <div class="card-sub">${distToSLPct}%</div>
+    </div>
+    <div class="card">
+      <div class="card-label">To Target</div>
+      <div class="card-value val-green">+$${distToPT.toFixed(2)}</div>
+      <div class="card-sub">${distToPTPct}%</div>
+    </div>
+  `;
+
+  // Exit triggers
+  const eta = document.getElementById('exit-triggers-area');
+  const sl_hit = currentPrice <= sl;
+  const pt_hit = currentPrice >= pt;
+  const signal_flip = signalState === 'SELL' || signalState === 'STRONG_SELL';
+
+  eta.innerHTML = `
+    <div class="exit-trigger et-stop ${sl_hit ? 'alert-red' : ''}">
+      <span class="exit-trigger-icon">🛑</span>
+      <div>
+        <strong>Stop-Loss:</strong> $${sl.toFixed(4)} (3% below entry)
+        ${sl_hit ? '<br><strong>⚠ TRIGGERED — Schwab OCO should have handled this.</strong>' : `<br>$${Math.abs(distToSL).toFixed(2)} away (${distToSLPct}%)`}
+      </div>
+    </div>
+    <div class="exit-trigger et-profit ${pt_hit ? 'alert-green' : ''}">
+      <span class="exit-trigger-icon">🎯</span>
+      <div>
+        <strong>Profit Target:</strong> $${pt.toFixed(4)} (6% above entry)
+        ${pt_hit ? '<br><strong>✅ TRIGGERED — Schwab OCO should have handled this.</strong>' : `<br>$${distToPT.toFixed(2)} away (${distToPTPct}%)`}
+      </div>
+    </div>
+    <div class="exit-trigger et-signal ${signal_flip ? 'alert-pink' : ''}">
+      <span class="exit-trigger-icon">⚡</span>
+      <div>
+        <strong>Signal Flip:</strong> MA5/MA20 crossover
+        ${signal_flip ? '<br><strong style="color:var(--pink)">⚡ MANUAL ACTION REQUIRED — go to Schwab, cancel your OCO bracket order, and sell your shares manually before 1:00pm Pacific today. The OCO cannot detect MA crossovers — only you can.</strong>' : '<br>Signal currently intact'}
+      </div>
+    </div>
+  `;
+}
+
+function updateBuySection() {
+  const portfolio = getPortfolioValue();
+  const sl = stopLossPrice;
+  const pt = profitTargetPrice;
+  const shares = suggestedShares;
+  const cost = shares * currentPrice;
+  const maxLoss = shares * currentPrice * 0.03;
+
+  // Regime toggle
+  const toggle = document.getElementById('regime-toggle');
+  toggle.className = 'toggle ' + (state.regimeOverride ? 'on' : '');
+  document.getElementById('regime-banner').style.display = state.regimeOverride ? 'flex' : 'none';
+
+  // Single-check banner (persist on Portfolio tab when proceed was chosen today)
+  const today = getTodayPT();
+  let singleCheckBanner = document.getElementById('single-check-banner');
+  if (!singleCheckBanner) {
+    singleCheckBanner = document.createElement('div');
+    singleCheckBanner.id = 'single-check-banner';
+    singleCheckBanner.className = 'alert alert-yellow';
+    singleCheckBanner.style.cssText = 'margin-bottom:10px;font-weight:600;';
+    const buySection = document.getElementById('buy-section');
+    buySection.insertBefore(singleCheckBanner, buySection.querySelector('.toggle-row'));
+  }
+  if (state.snapshotChoice === 'proceed' && state.snapshotChoiceDate === today) {
+    singleCheckBanner.style.display = 'block';
+    singleCheckBanner.textContent = '⚠ Single check only — morning snapshot missing. Position size reduced to ' + confidenceLevel + ' confidence.';
+  } else {
+    singleCheckBanner.style.display = 'none';
+  }
+
+  // Confidence panel
+  const confColors = { 'HIGH': 'val-green', 'STANDARD': 'val-blue', 'LOW': 'val-yellow' };
+  document.getElementById('conf-level').textContent = confidenceLevel;
+  document.getElementById('conf-level').className = 'conf-val ' + (confColors[confidenceLevel] || '');
+  document.getElementById('conf-similarity').textContent = patternScore + '%';
+  document.getElementById('conf-similarity').className = 'conf-val ' + (patternScore >= 80 ? 'val-green' : patternScore >= 50 ? 'val-yellow' : 'val-red');
+  document.getElementById('conf-shares').textContent = shares + ' shares';
+  document.getElementById('conf-cost').textContent = '$' + cost.toFixed(2);
+  document.getElementById('conf-maxloss').textContent = '$' + maxLoss.toFixed(2);
+  document.getElementById('conf-hardlimit').textContent = hardLimitShares + ' shares';
+  document.getElementById('conf-sl-price').textContent = '$' + sl.toFixed(4);
+  document.getElementById('conf-pt-price').textContent = '$' + pt.toFixed(4);
+  document.getElementById('override-max').textContent = hardLimitShares;
+
+  // Buy button
+  const btn = document.getElementById('buy-btn');
+  const reasonEl = document.getElementById('buy-disabled-reason');
+  if (state.position) {
+    btn.disabled = true;
+    reasonEl.textContent = 'Already in a position. Sell first.';
+  } else if (state.snapshotChoice === 'skip' && state.snapshotChoiceDate === today) {
+    btn.disabled = true;
+    reasonEl.style.color = 'var(--yellow)';
+    reasonEl.textContent = 'Today skipped — resume normal two-check routine tomorrow.';
+  } else if (!allConditionsMet) {
+    btn.disabled = true;
+    reasonEl.style.color = '';
+    const reasons = [];
+    const ma5 = ma5Arr[ma5Arr.length-1], ma20 = ma20Arr[ma20Arr.length-1];
+    if (!ma5 || !ma20 || ma5 <= ma20) reasons.push('MA5 not above MA20');
+    if (consecutiveDaysAbove < 3) reasons.push(`Only ${consecutiveDaysAbove}/3 consecutive days`);
+    if (gapDirection !== 'widening') reasons.push('Gap not widening');
+    if (marketTrend !== 'BULL') reasons.push('Market is BEAR');
+    if (isDrawdownBlocked()) reasons.push('Drawdown limit reached');
+    if (state.drawdownFlags.daily >= 2 && state.drawdownFlags.dailyDate === today) reasons.push('2 losses today — stop trading');
+    reasonEl.textContent = 'Buy blocked: ' + reasons.join(', ');
+  } else {
+    btn.disabled = false;
+    reasonEl.style.color = '';
+    reasonEl.textContent = '';
+  }
+}
+
+function updateAlertsArea() {
+  const alerts = [];
+
+  // Exit alerts
+  if (state.position) {
+    const p = state.position;
+    const sl = p.entryPrice * 0.97;
+    const pt = p.entryPrice * 1.06;
+    if (currentPrice <= sl) {
+      alerts.push({ type: 'red', msg: '🛑 STOP-LOSS HIT — Price has dropped to your stop-loss level ($' + sl.toFixed(4) + '). Your Schwab OCO order should have already handled this automatically. No manual action required.' });
+    }
+    if (currentPrice >= pt) {
+      alerts.push({ type: 'green', msg: '🎯 PROFIT TARGET HIT — Price has reached your profit target ($' + pt.toFixed(4) + '). Your Schwab OCO order should have already handled this automatically. No manual action required.' });
+    }
+    if (signalState === 'SELL' || signalState === 'STRONG_SELL') {
+      alerts.push({ type: 'pink', msg: '⚡ MANUAL ACTION REQUIRED — MA5 has crossed below MA20. Go to Schwab NOW, cancel your OCO bracket order, and sell your shares manually before 1:00pm Pacific. The OCO cannot detect MA crossovers — only YOU can act on this.' });
+    }
+  }
+
+  // Drawdown alerts
+  if (state.drawdownFlags.daily >= 2 && state.drawdownFlags.dailyDate === getTodayPT()) {
+    alerts.push({ type: 'red', msg: '⛔ STOP TRADING TODAY — 2 stop-losses hit in one day. Volatile conditions detected. Resume tomorrow.' });
+  }
+  if (state.drawdownFlags.weeklyFlagged) {
+    alerts.push({ type: 'orange', msg: '⚠ STOP TRADING THIS WEEK — Account dropped more than 6% from Monday opening. Review journal on Friday. Resume Monday.' });
+  }
+  if (state.drawdownFlags.monthlyFlagged) {
+    alerts.push({ type: 'red', msg: '🚨 STOP TRADING — Account dropped more than 10% this month. Return to simulation mode. Resume in 2 weeks.' });
+  }
+
+  const area = document.getElementById('alerts-area');
+  if (alerts.length === 0) {
+    area.style.display = 'none';
+    area.innerHTML = '';
+    return;
+  }
+  area.style.display = 'block';
+  area.innerHTML = alerts.map(a => `<div class="alert alert-${a.type}">${a.msg}</div>`).join('');
+}
+
+// ============================================================
+// MORNING SNAPSHOT
+// ============================================================
+function checkMorningSnapshot() {
+  const today = getTodayPT();
+  const snap = state.morningSnapshot;
+  if (isPTMorningWindow() && (!snap || snap.date !== today)) {
+    // Capture snapshot
+    captureSnapshot();
+  }
+}
+
+function captureSnapshot() {
+  const today = getTodayPT();
+  const ma5 = ma5Arr[ma5Arr.length-1];
+  const ma20 = ma20Arr[ma20Arr.length-1];
+  state.morningSnapshot = {
+    date: today,
+    price: currentPrice,
+    ma5: ma5,
+    ma20: ma20,
+    consecDays: consecutiveDaysAbove,
+    gapDir: gapDirection,
+    gapSize: ma5 && ma20 ? (ma5 - ma20) : 0,
+    signal: signalState,
+    market: marketTrend,
+    time: new Date().toISOString(),
+    source: dataSource
+  };
+  saveState(state);
+  logJournal(`[AUTO] Morning snapshot captured at ${new Date().toLocaleTimeString()} PT. Price: $${currentPrice.toFixed(4)}, Signal: ${signalState}, MA5 > MA20 for ${consecutiveDaysAbove} days.`, true);
+  // Always populate fields immediately after capture
+  populateMorningFields(state.morningSnapshot);
+}
+
+function populateMorningFields(snap) {
+  if (!snap) return;
+  const statusEl = document.getElementById('morning-snap-status');
+  if (statusEl) {
+    statusEl.textContent = '✅ Captured at ' + new Date(snap.time).toLocaleTimeString();
+    statusEl.className = 'tag tag-green';
+  }
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('am-price',   '$' + snap.price.toFixed(4));
+  set('am-ma5',     snap.ma5  ? '$' + snap.ma5.toFixed(4)  : '—');
+  set('am-ma20',    snap.ma20 ? '$' + snap.ma20.toFixed(4) : '—');
+  set('am-consec',  snap.consecDays);
+  set('am-gap-dir', snap.gapDir === 'widening' ? '↑ Widening' : snap.gapDir === 'narrowing' ? '↓ Narrowing' : '→ Flat');
+  set('am-signal',  snap.signal);
+  set('am-market',  snap.market);
+  set('am-snaptime', new Date(snap.time).toLocaleTimeString());
+}
+
+function updateMorningTab() {
+  const today = getTodayPT();
+  const snap = state.morningSnapshot;
+  const statusEl = document.getElementById('morning-snap-status');
+
+  if (snap && snap.date === today) {
+    statusEl.textContent = '✅ Captured at ' + new Date(snap.time).toLocaleTimeString();
+    statusEl.className = 'tag tag-green';
+    document.getElementById('am-price').textContent = '$' + snap.price.toFixed(4);
+    document.getElementById('am-ma5').textContent = snap.ma5 ? '$'+snap.ma5.toFixed(4) : '—';
+    document.getElementById('am-ma20').textContent = snap.ma20 ? '$'+snap.ma20.toFixed(4) : '—';
+    document.getElementById('am-consec').textContent = snap.consecDays;
+    document.getElementById('am-gap-dir').textContent = snap.gapDir === 'widening' ? '↑ Widening' : '↓ Narrowing';
+    document.getElementById('am-signal').textContent = snap.signal;
+    document.getElementById('am-market').textContent = snap.market;
+    document.getElementById('am-snaptime').textContent = new Date(snap.time).toLocaleTimeString();
+  } else {
+    statusEl.textContent = '⚠ No snapshot for today';
+    statusEl.className = 'tag tag-yellow';
+    document.getElementById('am-price').textContent = '$—';
+    document.getElementById('am-ma5').textContent = '$—';
+    document.getElementById('am-ma20').textContent = '$—';
+    document.getElementById('am-consec').textContent = '—';
+    document.getElementById('am-gap-dir').textContent = '—';
+    document.getElementById('am-signal').textContent = '—';
+    document.getElementById('am-market').textContent = '—';
+    document.getElementById('am-snaptime').textContent = '—';
+  }
+}
+
+function updateMiddayTab() {
+  const today = getTodayPT();
+  const snap = state.morningSnapshot;
+  const area = document.getElementById('snapshot-comparison-area');
+  const matchArea = document.getElementById('signal-match-area');
+  const actionArea = document.getElementById('midday-action-area');
+
+  const ma5 = ma5Arr[ma5Arr.length-1];
+  const ma20 = ma20Arr[ma20Arr.length-1];
+
+  if (!snap || snap.date !== today) {
+    const choiceMadeToday = state.snapshotChoice && state.snapshotChoiceDate === today;
+
+    if (choiceMadeToday && state.snapshotChoice === 'proceed') {
+      area.innerHTML = `
+        <div class="alert alert-yellow" style="margin-bottom:0;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px;">⚠ Proceeding — single check only</div>
+          <div style="font-size:12px;line-height:1.7;">Morning snapshot is missing. You've chosen to proceed with the afternoon signal only. Confidence has been reduced to <strong>${confidenceLevel}</strong> and position size adjusted accordingly.<br>
+          This is a lower-confidence entry. One of the two required confirmations is absent.</div>
+          <div style="margin-top:10px;">
+            <button class="btn btn-ghost" style="font-size:11px;" onclick="undoSnapChoice()">↩ Change my choice</button>
+          </div>
+        </div>`;
+    } else if (choiceMadeToday && state.snapshotChoice === 'skip') {
+      area.innerHTML = `
+        <div class="alert alert-blue" style="margin-bottom:0;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px;">✓ Today skipped</div>
+          <div style="font-size:12px;line-height:1.7;">No trade will be entered today. The Buy button is disabled for the rest of today.<br>Resume your normal two-check routine tomorrow.</div>
+          <div style="margin-top:10px;">
+            <button class="btn btn-ghost" style="font-size:11px;" onclick="undoSnapChoice()">↩ Change my choice</button>
+          </div>
+        </div>`;
+    } else {
+      area.innerHTML = `
+        <div class="snapshot-unavail">
+          <strong style="color:var(--yellow);">⚠ Morning snapshot unavailable for today</strong>
+          <p style="margin-top:8px;font-size:12px;color:var(--text2);">One of the two required confirmations is missing. Choose how to proceed:</p>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            <button class="btn btn-buy" onclick="chooseMissingSnap('proceed')">Proceed — lower confidence (1 of 2 checks)</button>
+            <button class="btn btn-ghost" onclick="chooseMissingSnap('skip')">Skip today — resume tomorrow</button>
+          </div>
+        </div>`;
+    }
+    matchArea.innerHTML = '';
+  } else {
+    // Side-by-side comparison
+    const curGap = ma5 && ma20 ? ma5 - ma20 : 0;
+    area.innerHTML = `
+      <div class="snapshot-compare">
+        <div class="snapshot-col">
+          <div class="snapshot-col-title">🌅 Morning (${new Date(snap.time).toLocaleTimeString()})</div>
+          <div class="snapshot-row"><span class="snapshot-row-label">Price</span><span class="snapshot-row-val">$${snap.price.toFixed(4)}</span></div>
+          <div class="snapshot-row"><span class="snapshot-row-label">MA5</span><span class="snapshot-row-val">${snap.ma5 ? '$'+snap.ma5.toFixed(4) : '—'}</span></div>
+          <div class="snapshot-row"><span class="snapshot-row-label">MA20</span><span class="snapshot-row-val">${snap.ma20 ? '$'+snap.ma20.toFixed(4) : '—'}</span></div>
+          <div class="snapshot-row"><span class="snapshot-row-label">Consec.</span><span class="snapshot-row-val">${snap.consecDays} days</span></div>
+          <div class="snapshot-row"><span class="snapshot-row-label">Gap</span><span class="snapshot-row-val">${snap.gapDir}</span></div>
+          <div class="snapshot-row"><span class="snapshot-row-label">Signal</span><span class="snapshot-row-val">${snap.signal}</span></div>
+        </div>
+        <div class="snapshot-col">
+          <div class="snapshot-col-title">☀️ Now (${new Date().toLocaleTimeString()})</div>
+          <div class="snapshot-row"><span class="snapshot-row-label">Price</span><span class="snapshot-row-val">$${currentPrice.toFixed(4)}</span></div>
+          <div class="snapshot-row"><span class="snapshot-row-label">MA5</span><span class="snapshot-row-val">${ma5 ? '$'+ma5.toFixed(4) : '—'}</span></div>
+          <div class="snapshot-row"><span class="snapshot-row-label">MA20</span><span class="snapshot-row-val">${ma20 ? '$'+ma20.toFixed(4) : '—'}</span></div>
+          <div class="snapshot-row"><span class="snapshot-row-label">Consec.</span><span class="snapshot-row-val">${consecutiveDaysAbove} days</span></div>
+          <div class="snapshot-row"><span class="snapshot-row-label">Gap</span><span class="snapshot-row-val">${gapDirection}</span></div>
+          <div class="snapshot-row"><span class="snapshot-row-label">Signal</span><span class="snapshot-row-val">${signalState}</span></div>
+        </div>
+      </div>`;
+
+    // Signal match
+    const matches = snap.signal === signalState;
+    const isPositiveSignal = (s) => s === 'STRONG_BUY' || s === 'BUY';
+    const sameDirection = isPositiveSignal(snap.signal) === isPositiveSignal(signalState);
+
+    matchArea.innerHTML = matches
+      ? `<div class="alert alert-green" style="text-align:center;font-size:14px;font-weight:700;">✅ CONFIRMED — Morning and afternoon signals agree</div>`
+      : `<div class="alert alert-yellow">⚠ SIGNALS DIVERGED — Morning was ${snap.signal}, afternoon is ${signalState}. ${!sameDirection ? 'Direction has reversed — do NOT enter today. Wait for clear confirmation.' : 'Signals agree in direction but differ in strength. Entry is lower confidence.'}</div>`;
+  }
+
+  // Entry decision or position status
+  const snapValid = snap && snap.date === today;
+  if (state.position) {
+    const p = state.position;
+    const pnl = (currentPrice - p.entryPrice) * p.shares;
+    const pnlPct = ((currentPrice - p.entryPrice) / p.entryPrice * 100).toFixed(2);
+    actionArea.innerHTML = `
+      <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;">
+        <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px;">Open Position</div>
+        <div style="font-size:13px;">P&L: <strong class="${pnl>=0?'val-green':'val-red'}">${pnl>=0?'+':''}$${pnl.toFixed(2)} (${pnlPct}%)</strong></div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;">${p.shares} shares @ $${p.entryPrice.toFixed(4)}</div>
+      </div>`;
+  } else if (!snapValid) {
+    // No morning snapshot — show nothing here; the two-choice panel above is the only prompt
+    actionArea.innerHTML = '';
+  } else {
+    // Snapshot exists — show full entry decision
+    const matches = snap.signal === signalState;
+    const isPositiveSignal = (s) => s === 'STRONG_BUY' || s === 'BUY';
+    const sameDirection = isPositiveSignal(snap.signal) === isPositiveSignal(signalState);
+    const confirmedEntry = allConditionsMet && matches && sameDirection;
+    actionArea.innerHTML = confirmedEntry
+      ? `<div class="alert alert-green"><strong>✅ Entry conditions met. All signals green. You may enter.</strong><br>Review position sizing in the Portfolio tab, then click BUY.</div>`
+      : `<div class="alert alert-yellow"><strong>⏸ Entry conditions not fully met.</strong><br>${!allConditionsMet ? 'Not all MA/trend conditions are confirmed.' : !sameDirection ? 'Morning and afternoon signals point in opposite directions — do not enter.' : 'Signals diverged — entry is lower confidence.'} Hold today.</div>`;
+  }
+}
+
+// ============================================================
+// CHECK EXIT TRIGGERS
+// ============================================================
+function checkExitTriggers() {
+  if (!state.position) return;
+  const p = state.position;
+  const sl = p.entryPrice * 0.97;
+  const pt = p.entryPrice * 1.06;
+  // Auto-flag but don't auto-sell (OCO handles stop/target)
+  // Signal flip does require user action (already shown in alerts)
+}
+
+// ============================================================
+// BUY / SELL
+// ============================================================
+function initBuy() {
+  const overrideShares = parseInt(document.getElementById('override-shares').value);
+  const overrideReason = document.getElementById('override-reason').value.trim();
+  let shares = suggestedShares;
+  let isOverride = false;
+
+  if (overrideShares && overrideShares > 0) {
+    if (overrideShares > hardLimitShares) {
+      alert(`Cannot exceed hard limit of ${hardLimitShares} shares (3% risk cap).`);
+      return;
+    }
+    if (!overrideReason) {
+      alert('Please provide a reason for your override in the text box.');
+      return;
+    }
+    shares = overrideShares;
+    isOverride = true;
+  }
+
+  const cost = shares * currentPrice;
+  if (cost > state.cash) {
+    alert(`Not enough cash. Need $${cost.toFixed(2)}, have $${state.cash.toFixed(2)}`);
+    return;
+  }
+
+  const sl = currentPrice * 0.97;
+  const pt = currentPrice * 1.06;
+  const maxLoss = shares * currentPrice * 0.03;
+  const portfolio = getPortfolioValue();
+  const riskPct = (maxLoss / portfolio * 100).toFixed(1);
+
+  showModal('Confirm BUY Order', `
+    <div class="conf-row"><span class="conf-key">Ticker</span><span class="conf-val val-accent">${state.primaryTicker}</span></div>
+    <div class="conf-row"><span class="conf-key">Price</span><span class="conf-val">$${currentPrice.toFixed(4)}</span></div>
+    <div class="conf-row"><span class="conf-key">Shares</span><span class="conf-val">${shares}${isOverride ? ' <span class="tag tag-orange">OVERRIDE</span>' : ''}</span></div>
+    <div class="conf-row"><span class="conf-key">Total Cost</span><span class="conf-val">$${cost.toFixed(2)}</span></div>
+    <div class="conf-row"><span class="conf-key">Max Loss</span><span class="conf-val val-red">$${maxLoss.toFixed(2)} (${riskPct}%)</span></div>
+    <div class="conf-row"><span class="conf-key">Stop-Loss</span><span class="conf-val val-red">$${sl.toFixed(4)}</span></div>
+    <div class="conf-row"><span class="conf-key">Profit Target</span><span class="conf-val val-green">$${pt.toFixed(4)}</span></div>
+    <div class="conf-row"><span class="conf-key">Confidence</span><span class="conf-val">${confidenceLevel}</span></div>
+    <div class="conf-row"><span class="conf-key">Pattern Score</span><span class="conf-val">${patternScore}%</span></div>
+    ${isOverride ? `<div class="conf-row"><span class="conf-key">Override Reason</span><span class="conf-val">${overrideReason}</span></div>` : ''}
+    ${state.regimeOverride ? '<div class="alert alert-green" style="margin-top:8px;">Regime override active</div>' : ''}
+  `, [
+    { label: '✓ Confirm BUY', cls: 'btn-buy', fn: () => executeBuy(shares, isOverride, overrideReason) },
+    { label: 'Cancel', cls: 'btn-ghost', fn: closeModal }
+  ]);
+}
+
+function executeBuy(shares, isOverride, overrideReason) {
+  closeModal();
+  const cost = shares * currentPrice;
+  state.cash -= cost;
+  state.position = {
+    shares,
+    entryPrice: currentPrice,
+    entryDate: new Date().toISOString(),
+    confidence: confidenceLevel,
+    similarity: patternScore,
+    regimeOverride: state.regimeOverride,
+    consecDays: consecutiveDaysAbove,
+    gapDir: gapDirection,
+    gapSize: (ma5Arr[ma5Arr.length-1]||0) - (ma20Arr[ma20Arr.length-1]||0),
+    isOverride,
+    overrideReason,
+    oco_set: false
+  };
+  state.totalTradeCount++;
+
+  // Set OCO prices
+  const sl = currentPrice * 0.97;
+  const pt = currentPrice * 1.06;
+
+  // Show OCO card
+  document.getElementById('oco-stop-price').textContent = '$' + sl.toFixed(4);
+  document.getElementById('oco-target-price').textContent = '$' + pt.toFixed(4);
+  document.getElementById('oco-card').style.display = 'block';
+
+  const note = `[TRADE] BUY — ${new Date().toLocaleDateString()} | ${shares} shares @ $${currentPrice.toFixed(4)} | Confidence: ${confidenceLevel} | Similarity: ${patternScore}% | Regime Override: ${state.regimeOverride ? 'YES' : 'NO'} | Consec Days: ${consecutiveDaysAbove}${isOverride ? ` | OVERRIDE: ${overrideReason}` : ''}`;
+  logJournal(note, true);
+  saveState(state);
+  updateAll();
+
+  // Switch to portfolio tab
+  switchTab('portfolio');
+}
+
+function initSell(exitType) {
+  if (!state.position) return;
+  const p = state.position;
+  const pnl = (currentPrice - p.entryPrice) * p.shares;
+  const pnlPct = ((currentPrice - p.entryPrice) / p.entryPrice * 100).toFixed(2);
+  const holdDays = Math.floor((Date.now() - new Date(p.entryDate).getTime()) / 86400000);
+
+  showModal('Confirm SELL Order', `
+    <div class="conf-row"><span class="conf-key">Shares</span><span class="conf-val">${p.shares}</span></div>
+    <div class="conf-row"><span class="conf-key">Entry Price</span><span class="conf-val">$${p.entryPrice.toFixed(4)}</span></div>
+    <div class="conf-row"><span class="conf-key">Exit Price</span><span class="conf-val">$${currentPrice.toFixed(4)}</span></div>
+    <div class="conf-row"><span class="conf-key">P&L</span><span class="conf-val ${pnl>=0?'val-green':'val-red'}">${pnl>=0?'+':''}$${pnl.toFixed(2)} (${pnlPct}%)</span></div>
+    <div class="conf-row"><span class="conf-key">Hold Days</span><span class="conf-val">${holdDays}</span></div>
+  `, [
+    { label: '✓ Confirm SELL', cls: 'btn-sell', fn: () => executeSell('MANUAL') },
+    { label: 'Cancel', cls: 'btn-ghost', fn: closeModal }
+  ]);
+}
+
+function executeSell(exitType) {
+  closeModal();
+  if (!state.position) return;
+  const p = state.position;
+  const proceeds = p.shares * currentPrice;
+  const pnl = (currentPrice - p.entryPrice) * p.shares;
+  const holdDays = Math.floor((Date.now() - new Date(p.entryDate).getTime()) / 86400000);
+
+  state.cash += proceeds;
+
+  const trade = {
+    date: new Date().toISOString(),
+    entryPrice: p.entryPrice,
+    exitPrice: currentPrice,
+    shares: p.shares,
+    pnl,
+    exitType,
+    holdDays,
+    confidence: p.confidence,
+    similarity: p.similarity,
+    entryConsecDays: p.consecDays,
+    entryGap: p.gapSize,
+    regimeOverride: p.regimeOverride
+  };
+
+  state.trades.push(trade);
+
+  // Win/loss streak
+  if (pnl > 0) {
+    state.winStreak = (state.winStreak || 0) + 1;
+  } else {
+    state.winStreak = 0;
+    // Daily loss tracking
+    if (!state.drawdownFlags.dailyDate || state.drawdownFlags.dailyDate !== getTodayPT()) {
+      state.drawdownFlags.daily = 0;
+      state.drawdownFlags.dailyDate = getTodayPT();
+    }
+    state.drawdownFlags.daily = (state.drawdownFlags.daily || 0) + 1;
+  }
+
+  state.position = null;
+  state.ocoConfirmed = false;
+  document.getElementById('oco-card').style.display = 'none';
+
+  // Drawdown checks
+  checkDrawdownLimits();
+
+  const note = `[TRADE] SELL — ${new Date().toLocaleDateString()} | ${trade.shares} shares | Entry: $${trade.entryPrice.toFixed(4)} | Exit: $${trade.exitPrice.toFixed(4)} | P&L: ${pnl>=0?'+':''}$${pnl.toFixed(2)} | Exit type: ${exitType} | Hold: ${holdDays} days`;
+  logJournal(note, true);
+  saveState(state);
+  updateAll();
+}
+
+function checkDrawdownLimits() {
+  const portfolio = getPortfolioValue();
+  const startBal = state.startBalance;
+
+  // Monthly drawdown (10%)
+  if (!state.monthStartBalance) state.monthStartBalance = startBal;
+  const monthDD = (state.monthStartBalance - portfolio) / state.monthStartBalance * 100;
+  if (monthDD >= 10) state.drawdownFlags.monthlyFlagged = true;
+
+  // Weekly drawdown (6%)
+  if (!state.weekStartBalance) state.weekStartBalance = startBal;
+  const weekDD = (state.weekStartBalance - portfolio) / state.weekStartBalance * 100;
+  if (weekDD >= 6) state.drawdownFlags.weeklyFlagged = true;
+}
+
+function confirmOCO() {
+  if (state.position) {
+    state.position.oco_set = true;
+    saveState(state);
+    document.getElementById('oco-card').style.display = 'none';
+    logJournal('[AUTO] OCO bracket order confirmed set on Schwab.', true);
+  }
+}
+
+// ============================================================
+// JOURNAL
+// ============================================================
+function logJournal(text, isAuto) {
+  const entry = {
+    time: new Date().toISOString(),
+    text,
+    isAuto: !!isAuto
+  };
+  state.journal.unshift(entry);
+  if (state.journal.length > 500) state.journal.pop();
+  saveState(state);
+}
+
+function saveMorningNote() {
+  const note = document.getElementById('morning-note').value.trim();
+  if (!note) return;
+  logJournal(`[MORNING ${new Date().toLocaleTimeString()}] ${note}`, false);
+  document.getElementById('morning-note').value = '';
+  updateJournalDisplay();
+}
+
+function saveMiddayNote() {
+  const note = document.getElementById('midday-note').value.trim();
+  if (!note) return;
+  logJournal(`[MIDDAY ${new Date().toLocaleTimeString()}] ${note}`, false);
+  document.getElementById('midday-note').value = '';
+  updateJournalDisplay();
+}
+
+function manualCaptureSnapshot() {
+  // Ensure we have current price data before capturing
+  if (!currentPrice || currentPrice === 0) {
+    alert('Waiting for price data — please try again in a moment.');
+    return;
+  }
+  captureSnapshot();
+  updateMorningTab();
+  updateMiddayTab();
+  updateSummaryRow();
+  updateRightPanel();
+  // Visual confirmation on the button
+  const btn = document.getElementById('manual-snap-btn');
+  if (btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✅ Snapshot saved!';
+    btn.style.background = 'var(--green3)';
+    btn.style.borderColor = 'var(--green2)';
+    btn.style.color = 'var(--green)';
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.style.background = '';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      btn.disabled = false;
+    }, 2000);
+  }
+}
+
+function logMorningCandidate(yes) {
+  const today = getTodayPT();
+  if (!state.morningCandidates) state.morningCandidates = {};
+  state.morningCandidates[today] = yes;
+  // Auto-capture snapshot when YES is pressed
+  if (yes) captureSnapshot();
+  saveState(state);
+  logJournal(`[AUTO] Morning candidate check: ${yes ? `YES — ${state.primaryTicker} is a candidate today (snapshot captured)` : `NO — ${state.primaryTicker} not a candidate today`}`, true);
+  updateMorningTab();
+  updateMiddayTab();
+  updateJournalDisplay();
+}
+
+function chooseMissingSnap(choice) {
+  const today = getTodayPT();
+  state.snapshotChoice = choice;
+  state.snapshotChoiceDate = today;
+  saveState(state);
+
+  if (choice === 'proceed') {
+    // Drop confidence one tier for today: HIGH→STANDARD, STANDARD→LOW, LOW stays LOW
+    const downgrade = { 'HIGH': 'STANDARD', 'STANDARD': 'LOW', 'LOW': 'LOW' };
+    const reduced = downgrade[confidenceLevel] || 'LOW';
+    confidenceLevel = reduced;
+    // Recalculate shares at reduced tier
+    const portfolio = getPortfolioValue();
+    const riskPct = reduced === 'HIGH' ? 0.025 : reduced === 'STANDARD' ? 0.015 : 0.01;
+    const stopLossDist = currentPrice * 0.03;
+    suggestedShares = Math.max(1, Math.floor((portfolio * riskPct) / stopLossDist));
+    logJournal(`[SNAPSHOT CHOICE ${new Date().toLocaleTimeString()}] PROCEED — single check only, morning snapshot missing. Confidence reduced to ${reduced}. Suggested position size reduced accordingly.`, false);
+  } else {
+    logJournal(`[SNAPSHOT CHOICE ${new Date().toLocaleTimeString()}] SKIP — user chose to skip today. No trade will be entered. Resume normal two-check routine tomorrow.`, false);
+  }
+
+  updateMiddayTab();
+  updateBuySection();
+  updateJournalDisplay();
+}
+
+function undoSnapChoice() {
+  state.snapshotChoice = null;
+  state.snapshotChoiceDate = '';
+  // Restore normal confidence calculation
+  recalcMAs();
+  saveState(state);
+  updateMiddayTab();
+  updateBuySection();
+}
+
+function updateJournalDisplay() {
+  const list = document.getElementById('journal-entries-list');
+  const recent = document.getElementById('right-journal-recent');
+
+  const entries = state.journal.slice(0, 50);
+  const renderEntry = (e, compact) => {
+    const time = new Date(e.time).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+    if (compact) return `<div class="journal-entry ${e.isAuto ? 'journal-entry-auto' : ''}"><div class="journal-entry-time">${time}</div><div class="journal-entry-text" style="font-size:11px;">${e.text.slice(0,100)}${e.text.length>100?'...':''}</div></div>`;
+    return `<div class="journal-entry ${e.isAuto ? 'journal-entry-auto' : ''}"><div class="journal-entry-time">${time}</div><div class="journal-entry-text">${e.text}</div></div>`;
+  };
+
+  if (list) list.innerHTML = entries.map(e => renderEntry(e, false)).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px 0;">No journal entries yet.</div>';
+  if (recent) recent.innerHTML = entries.slice(0,5).map(e => renderEntry(e, true)).join('') || '<div style="color:var(--text3);font-size:11px;">No entries.</div>';
+
+  // Friday review
+  const fridayEl = document.getElementById('friday-review-area');
+  if (fridayEl && isFriday()) {
+    const wins = state.trades.filter(t => t.pnl > 0).length;
+    const losses = state.trades.filter(t => t.pnl <= 0).length;
+    const weekPnl = state.trades.slice(-10).reduce((a,t) => a + t.pnl, 0);
+    const wr = state.trades.length > 0 ? (wins / state.trades.length * 100).toFixed(1) : '—';
+    const avgHold = state.trades.length > 0 ? (state.trades.reduce((a,t)=>a+(t.holdDays||0),0)/state.trades.length).toFixed(1) : '—';
+
+    fridayEl.innerHTML = `
+      <div class="friday-review">
+        <div class="friday-review-title">📊 Friday Weekly Review</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <div class="card"><div class="card-label">Total Wins</div><div class="card-value val-green">${wins}</div></div>
+          <div class="card"><div class="card-label">Total Losses</div><div class="card-value val-red">${losses}</div></div>
+          <div class="card"><div class="card-label">Win Rate</div><div class="card-value">${wr}%</div></div>
+          <div class="card"><div class="card-label">Avg Hold</div><div class="card-value">${avgHold} days</div></div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">What rule did I follow best this week?</div>
+        <textarea placeholder="Reflect on your best discipline this week..." id="friday-best" style="min-height:60px;"></textarea>
+        <div style="font-size:12px;color:var(--text2);margin:8px 0;">What rule did I struggle with?</div>
+        <textarea placeholder="Identify your biggest challenge this week..." id="friday-struggle" style="min-height:60px;"></textarea>
+        <button class="btn btn-primary" style="margin-top:8px;" onclick="saveFridayReview()">Save Weekly Review</button>
+      </div>`;
+  }
+}
+
+function saveFridayReview() {
+  const best = document.getElementById('friday-best')?.value.trim();
+  const struggle = document.getElementById('friday-struggle')?.value.trim();
+  if (best || struggle) {
+    logJournal(`[WEEKLY REVIEW] Best rule followed: ${best || '(not filled)'} | Struggled with: ${struggle || '(not filled)'}`, false);
+    updateJournalDisplay();
+  }
+}
+
+function updateTaxDisplay() {
+  const gains = state.trades.filter(t=>t.pnl>0).reduce((a,t)=>a+t.pnl, 0);
+  const losses = Math.abs(state.trades.filter(t=>t.pnl<=0).reduce((a,t)=>a+t.pnl, 0));
+  const net = gains - losses;
+  const tax = Math.max(0, net * 0.22);
+  const realPnl = state.trades.reduce((a,t)=>a+t.pnl,0);
+  const takehome = realPnl - tax;
+
+  document.getElementById('tax-gains').textContent = '$' + gains.toFixed(2);
+  document.getElementById('tax-losses').textContent = '-$' + losses.toFixed(2);
+  document.getElementById('tax-net').textContent = (net >= 0 ? '+' : '') + '$' + net.toFixed(2);
+  document.getElementById('tax-owed').textContent = '$' + tax.toFixed(2);
+  document.getElementById('tax-takehome').textContent = (takehome >= 0 ? '+' : '') + '$' + takehome.toFixed(2);
+
+  // Monthly breakdown
+  const monthly = {};
+  state.trades.forEach(t => {
+    const m = new Date(t.date).toLocaleDateString('en-US', {year:'numeric', month:'short'});
+    if (!monthly[m]) monthly[m] = { gains: 0, losses: 0 };
+    if (t.pnl > 0) monthly[m].gains += t.pnl;
+    else monthly[m].losses += t.pnl;
+  });
+
+  const tbody = document.getElementById('tax-monthly-body');
+  const rows = Object.entries(monthly).map(([m, d]) => {
+    const net = d.gains + d.losses;
+    const tax = Math.max(0, net * 0.22);
+    return `<tr>
+      <td>${m}</td>
+      <td class="${d.gains>0?'val-green':''}">$${d.gains.toFixed(2)}</td>
+      <td class="${d.losses<0?'val-red':''}">$${Math.abs(d.losses).toFixed(2)}</td>
+      <td class="${net>=0?'val-green':'val-red'}">${net>=0?'+':''}$${net.toFixed(2)}</td>
+      <td class="val-orange">$${tax.toFixed(2)}</td>
+    </tr>`;
+  });
+  if (tbody) tbody.innerHTML = rows.join('') || '<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:8px;">No closed trades yet</td></tr>';
+}
+
+function updateRightPanel() {
+  const posArea = document.getElementById('right-position-area');
+  if (state.position) {
+    const p = state.position;
+    const pnl = (currentPrice - p.entryPrice) * p.shares;
+    const pnlPct = ((currentPrice - p.entryPrice) / p.entryPrice * 100).toFixed(2);
+    const sl = p.entryPrice * 0.97;
+    const pt = p.entryPrice * 1.06;
+    posArea.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div class="card" style="padding:8px;">
+          <div class="card-label">P&L</div>
+          <div class="card-value ${pnl>=0?'val-green':'val-red'}" style="font-size:15px;">${pnl>=0?'+':''}$${pnl.toFixed(2)}</div>
+          <div class="card-sub">${pnl>=0?'+':''}${pnlPct}%</div>
+        </div>
+        <div class="card" style="padding:8px;">
+          <div class="card-label">Shares</div>
+          <div class="card-value val-accent" style="font-size:15px;">${p.shares}</div>
+          <div class="card-sub">@ $${p.entryPrice.toFixed(2)}</div>
+        </div>
+        <div class="card" style="padding:8px;background:var(--red3);border-color:var(--red2);">
+          <div class="card-label">Stop-Loss</div>
+          <div class="card-value val-red" style="font-size:14px;">$${sl.toFixed(4)}</div>
+        </div>
+        <div class="card" style="padding:8px;background:var(--green3);border-color:var(--green2);">
+          <div class="card-label">Target</div>
+          <div class="card-value val-green" style="font-size:14px;">$${pt.toFixed(4)}</div>
+        </div>
+      </div>`;
+  } else {
+    posArea.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No open position</div>';
+  }
+
+  // Today's checks
+  const checksArea = document.getElementById('today-checks-area');
+  const today = getTodayPT();
+  const snap = state.morningSnapshot;
+  const candidate = state.morningCandidates?.[today];
+  checksArea.innerHTML = `
+    <div style="font-size:11px;color:var(--text2);">Morning snapshot: <strong class="${snap && snap.date===today ? 'val-green' : 'val-yellow'}">${snap && snap.date===today ? '✅ Captured' : '⚠ Missing'}</strong></div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px;">Candidate today: <strong class="${candidate===true?'val-green':candidate===false?'val-red':'val-yellow'}">${candidate===true?'YES':candidate===false?'NO':'Not logged'}</strong></div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px;">Signal: <strong>${signalState}</strong></div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px;">All conditions: <strong class="${allConditionsMet?'val-green':'val-yellow'}">${allConditionsMet?'✅ MET':'⏸ Not met'}</strong></div>
+  `;
+}
+
+// ============================================================
+// CANVAS CHART
+// ============================================================
+function renderChart() {
+  const canvas = document.getElementById('chart-canvas');
+  if (!canvas || priceHistory.length < 5) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.parentElement.clientWidth;
+  const h = 220;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.scale(dpr, dpr);
+
+  const data = priceHistory.slice(-60);
+  const closes = data.map(d => d.close);
+  const ma5 = calcMA(closes, 5);
+  const ma20 = calcMA(closes, 20);
+
+  const allVals = [...closes, ...ma5.filter(v=>v!=null), ...ma20.filter(v=>v!=null)];
+  if (state.position) { allVals.push(state.position.entryPrice * 0.97, state.position.entryPrice * 1.06); }
+  const minV = Math.min(...allVals) * 0.998;
+  const maxV = Math.max(...allVals) * 1.002;
+
+  const padL = 52, padR = 10, padT = 15, padB = 28;
+  const cw = w - padL - padR;
+  const ch = h - padT - padB;
+
+  const xOf = i => padL + (i / (data.length - 1)) * cw;
+  const yOf = v => padT + ch - ((v - minV) / (maxV - minV)) * ch;
+
+  // Background
+  ctx.fillStyle = '#080c10';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = '#1e2d3d';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (i / 4) * ch;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+  }
+
+  // Month labels
+  ctx.fillStyle = '#4a6a85';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.textAlign = 'center';
+  let lastMonth = '';
+  data.forEach((d, i) => {
+    const m = d.date.slice(5, 7);
+    if (m !== lastMonth) {
+      lastMonth = m;
+      const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1];
+      ctx.fillText(mn, xOf(i), h - 5);
+    }
+  });
+
+  // Y axis
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const v = minV + (i / 4) * (maxV - minV);
+    ctx.fillStyle = '#4a6a85';
+    ctx.fillText('$' + v.toFixed(2), padL - 4, padT + ch - (i / 4) * ch + 4);
+  }
+
+  // MA crossover verticals
+  for (let i = 1; i < data.length; i++) {
+    if (ma5[i] != null && ma20[i] != null && ma5[i-1] != null && ma20[i-1] != null) {
+      const cross = (ma5[i] > ma20[i]) !== (ma5[i-1] > ma20[i-1]);
+      if (cross) {
+        ctx.strokeStyle = 'rgba(255,204,0,0.4)';
+        ctx.setLineDash([3,3]);
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(xOf(i), padT); ctx.lineTo(xOf(i), padT+ch); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+  }
+
+  // SL / Target lines if position open
+  if (state.position) {
+    const sl = state.position.entryPrice * 0.97;
+    const pt = state.position.entryPrice * 1.06;
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#ff3355';
+    ctx.beginPath(); ctx.moveTo(padL, yOf(sl)); ctx.lineTo(w-padR, yOf(sl)); ctx.stroke();
+    ctx.strokeStyle = '#00ff88';
+    ctx.beginPath(); ctx.moveTo(padL, yOf(pt)); ctx.lineTo(w-padR, yOf(pt)); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // MA20 line
+  ctx.strokeStyle = '#ff8833';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 3]);
+  ctx.beginPath();
+  let started = false;
+  data.forEach((d, i) => {
+    if (ma20[i] == null) return;
+    if (!started) { ctx.moveTo(xOf(i), yOf(ma20[i])); started = true; }
+    else ctx.lineTo(xOf(i), yOf(ma20[i]));
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // MA5 line
+  ctx.strokeStyle = '#4488ff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  started = false;
+  data.forEach((d, i) => {
+    if (ma5[i] == null) return;
+    if (!started) { ctx.moveTo(xOf(i), yOf(ma5[i])); started = true; }
+    else ctx.lineTo(xOf(i), yOf(ma5[i]));
+  });
+  ctx.stroke();
+
+  // Price line
+  ctx.strokeStyle = '#00ff88';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  data.forEach((d, i) => {
+    if (i === 0) ctx.moveTo(xOf(i), yOf(d.close));
+    else ctx.lineTo(xOf(i), yOf(d.close));
+  });
+  ctx.stroke();
+
+  // Trade dots
+  state.trades.forEach(t => {
+    const di = data.findIndex(d => d.date === new Date(t.date).toISOString().slice(0,10));
+    if (di >= 0) {
+      ctx.beginPath();
+      ctx.arc(xOf(di), yOf(t.exitPrice), 4, 0, Math.PI*2);
+      ctx.fillStyle = t.pnl >= 0 ? '#00ff88' : '#ff3355';
+      ctx.fill();
+    }
+  });
+
+  if (state.position) {
+    const di = data.findIndex(d => d.date === new Date(state.position.entryDate).toISOString().slice(0,10));
+    if (di >= 0) {
+      const confLabel = state.position.confidence;
+      ctx.beginPath();
+      ctx.arc(xOf(di), yOf(state.position.entryPrice), 5, 0, Math.PI*2);
+      ctx.fillStyle = '#00d4ff';
+      ctx.fill();
+      ctx.fillStyle = '#00d4ff';
+      ctx.font = 'bold 9px JetBrains Mono, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(confLabel, xOf(di), yOf(state.position.entryPrice) - 8);
+    }
+  }
+
+  // Legend
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.textAlign = 'left';
+  const legend = [['Price','#00ff88'], ['MA5','#4488ff'], ['MA20','#ff8833']];
+  legend.forEach(([l, c], i) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(padL + i*65, padT - 2, 10, 4);
+    ctx.fillStyle = '#7a9ab5';
+    ctx.fillText(l, padL + i*65 + 13, padT + 2);
+  });
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function showModal(title, bodyHTML, buttons) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHTML;
+  const btnRow = document.getElementById('modal-buttons');
+  btnRow.innerHTML = '';
+  buttons.forEach(b => {
+    const el = document.createElement('button');
+    el.className = 'btn ' + b.cls;
+    el.textContent = b.label;
+    el.onclick = b.fn;
+    btnRow.appendChild(el);
+  });
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name)?.classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.textContent.toLowerCase().includes(name) || b.getAttribute('onclick')?.includes(name)) {
+      b.classList.add('active');
+    }
+  });
+  if (name === 'journal') updateJournalDisplay();
+  if (name === 'tax') updateTaxDisplay();
+  if (name === 'midday') updateMiddayTab();
+  if (name === 'morning') updateMorningTab();
+  if (name === 'watchlist') { wlRender(); }
+}
+
+// ============================================================
+// REGIME OVERRIDE
+// ============================================================
+function toggleRegime() {
+  state.regimeOverride = !state.regimeOverride;
+  saveState(state);
+  recalcMAs();
+  updateBuySection();
+}
+
+// ============================================================
+// BLOCKING OVERLAY
+// ============================================================
+function checkBlockConfirm() {
+  const val = document.getElementById('block-confirm-input').value;
+  if (val.toLowerCase().trim() === 'i understand and accept') {
+    state.drawdownFlags.totalFlagged = false;
+    saveState(state);
+    document.getElementById('blocking-overlay').style.display = 'none';
+    logJournal('[AUTO] User acknowledged total drawdown warning and cleared the blocking alert.', true);
+  } else {
+    alert('Please type exactly: I understand and accept');
+  }
+}
+
+// ============================================================
+// RESET
+// ============================================================
+function confirmReset() {
+  showModal('Reset All Data', '<p style="color:var(--text2);">This will erase ALL data including trades, journal, portfolio balance, and history. This cannot be undone.</p>', [
+    { label: '⚠ Yes, Reset Everything', cls: 'btn-sell', fn: () => { localStorage.clear(); location.reload(); } },
+    { label: 'Cancel', cls: 'btn-ghost', fn: closeModal }
+  ]);
+}
+
+// ============================================================
+// ACCOUNT ADJUSTMENT
+// ============================================================
+let adjustMode = null; // 'add' | 'withdraw'
+
+function openAdjustPanel(mode) {
+  adjustMode = mode;
+  const panel = document.getElementById('adjust-panel');
+  const title = document.getElementById('adjust-panel-title');
+  title.textContent = mode === 'add' ? '＋ Add Funds to Cash Balance' : '－ Withdraw Funds from Cash Balance';
+  title.style.color = mode === 'add' ? 'var(--green)' : 'var(--red)';
+  document.getElementById('adjust-amount').value = '';
+  document.getElementById('adjust-reason').value = '';
+  panel.style.display = 'block';
+  document.getElementById('adjust-amount').focus();
+}
+
+function closeAdjustPanel() {
+  document.getElementById('adjust-panel').style.display = 'none';
+  adjustMode = null;
+}
+
+function applyAdjustment() {
+  const amount = parseFloat(document.getElementById('adjust-amount').value);
+  const reason = document.getElementById('adjust-reason').value.trim();
+  if (!amount || amount <= 0) { alert('Please enter a valid amount greater than $0.'); return; }
+  if (!reason) { alert('Please enter a reason for this adjustment.'); return; }
+  if (adjustMode === 'withdraw' && amount > state.cash) {
+    alert(`Cannot withdraw $${amount.toFixed(2)} — only $${state.cash.toFixed(2)} cash available.`);
+    return;
+  }
+  const before = state.cash;
+  if (adjustMode === 'add') {
+    state.cash += amount;
+  } else {
+    state.cash -= amount;
+  }
+  const after = state.cash;
+  const entry = `[ADJUSTMENT] ${adjustMode === 'add' ? 'Added' : 'Withdrew'} $${amount.toFixed(2)} — ${reason} | Cash: $${before.toFixed(2)} → $${after.toFixed(2)}`;
+  logJournal(entry, true);
+  saveState(state);
+  closeAdjustPanel();
+  updateAll();
+}
+
+// ============================================================
+// WATCHLIST
+// ============================================================
+const WL_DEFAULT = ['PDBC', 'SCHD', 'MOO'];
+const WL_KEY = 'pdbc_watchlist_tickers';
+const POLYGON_KEY = 'NXEdxpDNox8VdPWbTz__W3PotLFtz';
+
+// In-memory store: ticker → { closes[], price, ma5, ma20, change1m, change6m, signal, consecDays, gapDir, loading, error }
+let wlData = {};
+let wlRefreshTimer = null;
+
+function wlGetTickers() {
+  try { return JSON.parse(localStorage.getItem(WL_KEY)) || WL_DEFAULT.slice(); } catch(e) { return WL_DEFAULT.slice(); }
+}
+function wlSaveTickers(arr) { localStorage.setItem(WL_KEY, JSON.stringify(arr)); }
+
+function wlAddTicker() {
+  const input = document.getElementById('wl-ticker-input');
+  const ticker = (input.value || '').trim().toUpperCase();
+  if (!ticker) return;
+  const tickers = wlGetTickers();
+  if (tickers.includes(ticker)) { input.value = ''; return; }
+  if (tickers.length >= 20) { alert('Maximum 20 tickers on watchlist.'); return; }
+  tickers.push(ticker);
+  wlSaveTickers(tickers);
+  input.value = '';
+  wlData[ticker] = { loading: true };
+  wlRender();
+  wlFetchTicker(ticker).then(wlRender);
+}
+
+function wlRemoveTicker(ticker) {
+  const tickers = wlGetTickers().filter(t => t !== ticker);
+  wlSaveTickers(tickers);
+  delete wlData[ticker];
+  wlRender();
+}
+
+// Fetch one ticker: Yahoo → Polygon → simulated random walk
+async function wlFetchTicker(ticker) {
+  let closes = null;
+
+  // Yahoo Finance
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=6mo`;
+    const proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+    const r = await fetch(proxy, { signal: AbortSignal.timeout(9000) });
+    if (r.ok) {
+      const j = await r.json();
+      const data = JSON.parse(j.contents);
+      const result = data?.chart?.result?.[0];
+      if (result) {
+        const raw = result.indicators?.quote?.[0]?.close || [];
+        closes = raw.filter(c => c != null);
+      }
+    }
+  } catch(e) {}
+
+  // Polygon fallback
+  if (!closes || closes.length < 5) {
+    try {
+      const end = new Date();
+      const start = new Date(end); start.setDate(start.getDate() - 180);
+      const fmt = d => d.toISOString().slice(0,10);
+      const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/day/${fmt(start)}/${fmt(end)}?adjusted=true&sort=asc&limit=200&apiKey=NXEdxpDNox8VdPWbTz__W3PotLSNLFtz`;
+      const r = await fetch(url, { signal: AbortSignal.timeout(9000) });
+      if (r.ok) {
+        const j = await r.json();
+        if (j.results && j.results.length >= 5) {
+          closes = j.results.map(d => d.c);
+        }
+      }
+    } catch(e) {}
+  }
+
+  // Simulated fallback — random walk seeded by ticker chars
+  if (!closes || closes.length < 25) {
+    const seed = ticker.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    let price = 20 + (seed % 80);
+    closes = [];
+    for (let i = 0; i < 130; i++) {
+      const rand = ((Math.sin(seed * i * 1.3 + 7) + 1) / 2 - 0.48) * 0.015;
+      price = Math.max(1, price * (1 + rand + 0.0003));
+      closes.push(parseFloat(price.toFixed(4)));
+    }
+  }
+
+  // Trim to last 130 trading days (≈6mo)
+  closes = closes.slice(-130);
+
+  const ma5arr  = calcMA(closes, 5);
+  const ma20arr = calcMA(closes, 20);
+  const n = closes.length;
+  const price = closes[n - 1];
+  const ma5val  = ma5arr[n - 1];
+  const ma20val = ma20arr[n - 1];
+
+  // Consecutive days MA5 > MA20
+  let consec = 0;
+  for (let i = n - 1; i >= 0; i--) {
+    if (ma5arr[i] != null && ma20arr[i] != null && ma5arr[i] > ma20arr[i]) consec++;
+    else break;
+  }
+
+  // Gap direction (last 3 days)
+  let gapDir = 'flat';
+  if (n >= 3 && ma5arr[n-1] != null && ma20arr[n-1] != null &&
+                ma5arr[n-2] != null && ma20arr[n-2] != null) {
+    const gNow  = ma5arr[n-1] - ma20arr[n-1];
+    const gPrev = ma5arr[n-2] - ma20arr[n-2];
+    gapDir = gNow > gPrev ? 'widening' : gNow < gPrev ? 'narrowing' : 'flat';
+  }
+
+  // 1-month change (≈21 trading days)
+  const idx1m = Math.max(0, n - 22);
+  const change1m = ((price - closes[idx1m]) / closes[idx1m]) * 100;
+
+  // 6-month change (≈126 trading days)
+  const idx6m = Math.max(0, n - 127);
+  const change6m = ((price - closes[idx6m]) / closes[idx6m]) * 100;
+
+  // Signal — reuse same logic as calcSignalState but for this ticker's data
+  const gap = (ma5val && ma20val) ? ma5val - ma20val : 0;
+  const gapPct = ma20val ? Math.abs(gap) / ma20val * 100 : 0;
+  let signal = 'HOLD';
+  if (ma5val && ma20val) {
+    if (ma5val < ma20val) {
+      signal = consec === 0 && /* count days below */
+        (function() { let b = 0; for(let i=n-1;i>=0;i--) { if(ma5arr[i]!=null&&ma20arr[i]!=null&&ma5arr[i]<ma20arr[i])b++; else break; } return b; })() >= 2
+        ? 'STRONG_SELL' : 'SELL';
+    } else if (gapPct < 0.5) {
+      signal = 'HOLD';
+    } else if (consec >= 3 && gapDir === 'widening') {
+      signal = 'STRONG_BUY';
+    } else if (consec >= 1 && gapDir === 'widening') {
+      signal = 'BUY';
+    } else {
+      signal = 'HOLD';
+    }
+  }
+
+  // 1-month upward trend: last 21-day change positive
+  const trend1mUp = change1m > 0;
+
+  wlData[ticker] = {
+    closes, price, ma5: ma5val, ma20: ma20val,
+    gap: (ma5val && ma20val) ? ma5val - ma20val : 0,
+    gapDir, consec, change1m, change6m, signal,
+    trend1mUp, loading: false, error: false,
+    updatedAt: new Date()
+  };
+}
+
+async function wlRefreshAll() {
+  const tickers = wlGetTickers();
+  // Mark all as refreshing
+  tickers.forEach(t => { if (!wlData[t]) wlData[t] = { loading: true }; });
+  wlRender();
+
+  // Set spinner
+  const icon = document.getElementById('wl-refresh-icon');
+  if (icon) icon.innerHTML = '<span class="spin">⟳</span>';
+
+  // Fetch in parallel with a small stagger to avoid rate limits
+  const chunks = [];
+  for (let i = 0; i < tickers.length; i += 3) chunks.push(tickers.slice(i, i + 3));
+  for (const chunk of chunks) {
+    await Promise.all(chunk.map(t => wlFetchTicker(t)));
+    wlRender();
+    if (chunks.indexOf(chunk) < chunks.length - 1) await new Promise(r => setTimeout(r, 400));
+  }
+
+  if (icon) icon.innerHTML = '⟳';
+  const ts = document.getElementById('wl-last-updated');
+  if (ts) ts.textContent = 'Updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function wlEvalFilters(d) {
+  // Returns array of { label, pass }
+  return [
+    { label: '6mo return ≥ +6%',   pass: d.change6m  >= 6 },
+    { label: '1mo trend upward',    pass: d.trend1mUp === true },
+    { label: 'Price < $150',        pass: d.price < 150 },
+    { label: 'MA5 above MA20',      pass: d.ma5 != null && d.ma20 != null && d.ma5 > d.ma20 },
+    { label: 'Gap widening',        pass: d.gapDir === 'widening' },
+    { label: 'Consec. days ≥ 3',    pass: d.consec >= 3 },
+  ];
+}
+
+function wlRender() {
+  const container = document.getElementById('wl-cards-container');
+  if (!container) return;
+  const tickers = wlGetTickers();
+  if (tickers.length === 0) {
+    container.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0;">No tickers on watchlist. Add one above.</div>';
+    return;
+  }
+
+  const sigLabel = { STRONG_BUY: 'STRONG BUY', BUY: 'BUY', HOLD: 'HOLD', SELL: 'SELL', STRONG_SELL: 'STRONG SELL' };
+  const sigDot   = { STRONG_BUY: '#00ff88', BUY: '#44ffaa', HOLD: '#ffcc00', SELL: '#ff8833', STRONG_SELL: '#ff3355' };
+  const sigCls   = { STRONG_BUY: 'badge-strong-buy', BUY: 'badge-buy', HOLD: 'badge-hold', SELL: 'badge-sell', STRONG_SELL: 'badge-strong-sell' };
+
+  container.innerHTML = tickers.map(ticker => {
+    const d = wlData[ticker];
+
+    // Loading state
+    if (!d || d.loading) {
+      return `<div class="wl-card" style="border-color:var(--border2);">
+        <div class="wl-card-header">
+          <span class="wl-ticker">${ticker}</span>
+          <span style="font-size:11px;color:var(--text3);"><span class="loading-dot"></span> Loading...</span>
+        </div>
+      </div>`;
+    }
+
+    // Error state
+    if (d.error) {
+      return `<div class="wl-card" style="border-color:var(--border2);">
+        <div class="wl-card-header">
+          <span class="wl-ticker">${ticker}</span>
+          <span style="font-size:11px;color:var(--red);">Fetch failed</span>
+          <button class="btn btn-ghost" style="font-size:10px;padding:2px 8px;margin-left:auto;" onclick="wlRemoveTicker('${ticker}')">✕ Remove</button>
+        </div>
+      </div>`;
+    }
+
+    const filters = wlEvalFilters(d);
+    const passCount = filters.filter(f => f.pass).length;
+    const borderColor = passCount >= 6 ? 'var(--green2)' : passCount >= 4 ? '#886600' : 'var(--red2)';
+    const borderBg    = passCount >= 6 ? '#001a0a' : passCount >= 4 ? '#1a1400' : '#1a0005';
+
+    const sig = d.signal || 'HOLD';
+    const dot = sigDot[sig] || '#ffcc00';
+    const cls = sigCls[sig] || 'badge-hold';
+    const lbl = sigLabel[sig] || 'HOLD';
+
+    const fmt2 = v => v != null ? '$' + v.toFixed(2) : '—';
+    const fmtPct = v => v != null ? (v >= 0 ? '+' : '') + v.toFixed(2) + '%' : '—';
+    const gapAmt = d.gap != null ? (d.gap >= 0 ? '+' : '') + '$' + Math.abs(d.gap).toFixed(4) : '—';
+    const gapDirLabel = d.gapDir === 'widening' ? '<span style="color:var(--green)">↑ Widening</span>' : d.gapDir === 'narrowing' ? '<span style="color:var(--red)">↓ Narrowing</span>' : '→ Flat';
+    const change1mCls = d.change1m >= 0 ? 'val-green' : 'val-red';
+    const change6mCls = d.change6m >= 6 ? 'val-green' : d.change6m >= 0 ? 'val-yellow' : 'val-red';
+    const consecCls   = d.consec >= 3 ? 'val-green' : d.consec > 0 ? 'val-yellow' : 'val-red';
+
+    const filterRows = filters.map(f =>
+      `<div class="wl-filter-row">
+        <span class="wl-filter-dot" style="background:${f.pass ? 'var(--green)' : 'var(--red)'}"></span>
+        <span class="wl-filter-label ${f.pass ? '' : 'wl-filter-fail'}">${f.label}</span>
+      </div>`
+    ).join('');
+
+    return `<div class="wl-card" style="border-color:${borderColor};background:${borderBg};">
+      <div class="wl-card-header">
+        <span class="wl-ticker">${ticker}</span>
+        <span class="sum-signal-text ${cls}" style="font-size:12px;padding:3px 10px;">
+          <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${dot};box-shadow:0 0 5px ${dot}88;vertical-align:middle;margin-right:5px;margin-bottom:1px;"></span>${lbl}
+        </span>
+      </div>
+
+      <div class="wl-metrics">
+        <div class="wl-metric">
+          <div class="wl-metric-label">Price</div>
+          <div class="wl-metric-val">${fmt2(d.price)}</div>
+        </div>
+        <div class="wl-metric">
+          <div class="wl-metric-label">MA5</div>
+          <div class="wl-metric-val val-blue">${fmt2(d.ma5)}</div>
+        </div>
+        <div class="wl-metric">
+          <div class="wl-metric-label">MA20</div>
+          <div class="wl-metric-val val-orange">${fmt2(d.ma20)}</div>
+        </div>
+        <div class="wl-metric">
+          <div class="wl-metric-label">Gap</div>
+          <div class="wl-metric-val ${d.gap >= 0 ? 'val-green' : 'val-red'}">${gapAmt}</div>
+          <div style="font-size:10px;margin-top:1px;">${gapDirLabel}</div>
+        </div>
+        <div class="wl-metric">
+          <div class="wl-metric-label">Consec.</div>
+          <div class="wl-metric-val ${consecCls}">${d.consec}</div>
+          <div style="font-size:10px;color:var(--text3);">days</div>
+        </div>
+        <div class="wl-metric">
+          <div class="wl-metric-label">1-Month</div>
+          <div class="wl-metric-val ${change1mCls}">${fmtPct(d.change1m)}</div>
+        </div>
+        <div class="wl-metric">
+          <div class="wl-metric-label">6-Month</div>
+          <div class="wl-metric-val ${change6mCls}">${fmtPct(d.change6m)}</div>
+        </div>
+      </div>
+
+      <div class="wl-filters">
+        ${filterRows}
+      </div>
+
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        ${ticker === (state.primaryTicker || 'PDBC')
+          ? `<span class="tag tag-green" style="font-size:11px;padding:4px 12px;font-weight:700;">✦ Active instrument</span>`
+          : `<button class="btn btn-primary" style="font-size:11px;padding:5px 14px;font-weight:600;" onclick="switchPrimaryTicker('${ticker}')">⇄ Track This</button>`
+        }
+        <button class="btn btn-ghost" style="font-size:10px;padding:3px 10px;" onclick="wlRemoveTicker('${ticker}')">✕ Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// PRIMARY INSTRUMENT SWITCHING
+// ============================================================
+
+// Known ticker context info (generic fallback for unknowns)
+const TICKER_CONTEXT = {
+  PDBC: {
+    name: 'Invesco Optimum Yield Diversified Commodity ETF',
+    type: 'Commodity Futures ETF',
+    drivers: 'Gold, Silver, Oil, Agricultural commodities',
+    warn: '⚠ Contango decay: PDBC loses value long-term via futures roll costs. Never hold through a sell signal.',
+    current: 'Gold approaching $3,000/oz &nbsp;|&nbsp; Silver +102% in 2025'
+  },
+  SCHD: {
+    name: 'Schwab US Dividend Equity ETF',
+    type: 'Dividend Equity ETF',
+    drivers: 'US large-cap dividend stocks, financials, consumer staples, energy',
+    warn: '⚠ Dividend ETFs are sensitive to interest rate changes. Rising rates can compress valuations.',
+    current: 'Tracks dividend growth stocks with strong free cash flow and consistent payout history'
+  },
+  MOO: {
+    name: 'VanEck Agribusiness ETF',
+    type: 'Agricultural Sector ETF',
+    drivers: 'Global agribusiness companies, fertilizer, farm equipment, food production',
+    warn: '⚠ Commodity-linked — weather events, crop yields, and fertilizer prices drive price action.',
+    current: 'Agricultural commodities benefiting from global food security demand and commodity cycle'
+  },
+  GLD: {
+    name: 'SPDR Gold Shares ETF',
+    type: 'Gold ETF',
+    drivers: 'Gold spot price, USD strength, inflation expectations, central bank demand',
+    warn: '⚠ GLD tracks gold with no yield. Performance driven entirely by spot price movements.',
+    current: 'Gold approaching $3,000/oz — driven by Fed policy uncertainty and geopolitical demand'
+  },
+  SLV: {
+    name: 'iShares Silver Trust ETF',
+    type: 'Silver ETF',
+    drivers: 'Silver spot price, industrial demand, solar panel production, jewelry',
+    warn: '⚠ Silver is more volatile than gold due to its dual role as precious and industrial metal.',
+    current: 'Silver surged +102% in 2025 driven by solar panel demand and precious metals momentum'
+  },
+  USO: {
+    name: 'United States Oil Fund ETF',
+    type: 'Crude Oil Futures ETF',
+    drivers: 'WTI crude oil price, OPEC supply decisions, global demand',
+    warn: '⚠ Contango decay: USO loses value over time via futures roll costs. Short-term instrument only.',
+    current: 'Oil price driven by OPEC+ production decisions and global economic outlook'
+  },
+  QQQ: {
+    name: 'Invesco QQQ Trust (Nasdaq-100)',
+    type: 'Tech/Growth Equity ETF',
+    drivers: 'Nasdaq-100 mega-cap tech: Apple, Microsoft, Nvidia, Amazon, Alphabet',
+    warn: '⚠ High concentration in tech — sensitive to rate changes and earnings surprises.',
+    current: 'AI infrastructure spending and semiconductor demand are primary current drivers'
+  },
+  SPY: {
+    name: 'SPDR S&P 500 ETF Trust',
+    type: 'Broad Market ETF',
+    drivers: 'S&P 500 — diversified across all US sectors',
+    warn: '⚠ Broad market exposure — tracks US economy. Monitor macro data and Fed policy.',
+    current: 'Driven by earnings growth, Fed rate path, and AI sector momentum'
+  }
+};
+
+function getTickerContext(ticker) {
+  return TICKER_CONTEXT[ticker] || {
+    name: ticker + ' — Selected Instrument',
+    type: 'Tracked Instrument',
+    drivers: ticker + ' price action and sector fundamentals',
+    warn: '⚠ Monitor this instrument\'s sector-specific risks and fundamentals before trading.',
+    current: 'Check financial news for current drivers affecting ' + ticker
+  };
+}
+
+function updateTickerBranding() {
+  const t = state.primaryTicker || 'PDBC';
+  const ctx = getTickerContext(t);
+
+  // Header
+  const htEl = document.getElementById('header-title');
+  if (htEl) htEl.textContent = t + ' TRADER';
+  const hsEl = document.getElementById('header-sub');
+  if (hsEl) hsEl.textContent = ctx.name;
+
+  // Price card label
+  const pcl = document.getElementById('price-card-label');
+  if (pcl) pcl.textContent = t + ' Price';
+
+  // Morning candidate question
+  const cq = document.getElementById('candidate-question');
+  if (cq) cq.textContent = 'Is ' + t + ' a candidate today?';
+
+  // Buy / Sell buttons
+  const buyLabel = document.getElementById('buy-btn-label');
+  if (buyLabel) buyLabel.textContent = '⊕ BUY ' + t;
+  const sellBtn = document.getElementById('sell-btn-label');
+  if (sellBtn) sellBtn.textContent = 'SELL ' + t;
+
+  // OCO Schwab step
+  const ocoTicker = document.getElementById('oco-ticker-label');
+  if (ocoTicker) ocoTicker.textContent = t;
+
+  // Market context card
+  const mcTitle = document.getElementById('mc-title');
+  if (mcTitle) mcTitle.textContent = t + ' — ' + ctx.type;
+  const mcDrivers = document.getElementById('mc-drivers');
+  if (mcDrivers) mcDrivers.innerHTML = 'Driven by: <span class="mc-driver">' + ctx.drivers + '</span>';
+  const mcWarn = document.getElementById('mc-warn');
+  if (mcWarn) { mcWarn.innerHTML = ctx.warn; mcWarn.style.color = 'var(--orange)'; mcWarn.style.marginTop = '6px'; }
+  const mcStats = document.getElementById('mc-stats');
+  if (mcStats) mcStats.innerHTML = '<span style="color:var(--text3);font-size:11px;">52-wk range updates with live data</span>';
+  const mcCurrent = document.getElementById('mc-current');
+  if (mcCurrent) mcCurrent.innerHTML = 'Context: <span class="mc-driver">' + ctx.current + '</span>';
+
+  // Page title
+  document.title = t + ' Paper Trading Simulator';
+}
+
+function switchPrimaryTicker(newTicker) {
+  const old = state.primaryTicker || 'PDBC';
+  if (newTicker === old) return;
+
+  // Confirm dialog
+  showModal(
+    'Switch Primary Instrument',
+    `<div style="margin-bottom:12px;font-size:13px;color:var(--text2);line-height:1.7;">
+      Switch primary instrument from <strong style="color:var(--accent)">${old}</strong> to <strong style="color:var(--green)">${newTicker}</strong>?
+    </div>
+    <div class="alert alert-yellow" style="margin-bottom:0;">
+      This will reset your morning snapshot and current signal data for today.<br>
+      Your existing journal entries and trade history will be kept.<br>
+      <strong>${old}</strong> will remain on the watchlist for passive monitoring.
+    </div>`,
+    [
+      {
+        label: '✓ Switch to ' + newTicker,
+        cls: 'btn-buy',
+        fn: () => {
+          closeModal();
+          _doSwitchTicker(old, newTicker);
+        }
+      },
+      { label: 'Cancel', cls: 'btn-ghost', fn: closeModal }
+    ]
+  );
+}
+
+function _doSwitchTicker(old, newTicker) {
+  // Ensure old ticker stays on watchlist
+  const wlTickers = wlGetTickers();
+  if (!wlTickers.includes(old)) {
+    wlTickers.unshift(old);
+    wlSaveTickers(wlTickers);
+  }
+
+  // Update state
+  state.primaryTicker = newTicker;
+  // Reset morning snapshot — new instrument, fresh check required
+  state.morningSnapshot = null;
+  state.snapshotChoice = null;
+  state.snapshotChoiceDate = '';
+  saveState(state);
+
+  // Journal entry
+  const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  logJournal(`[INSTRUMENT SWITCH] Switched primary instrument from ${old} to ${newTicker} at ${timeStr}. Morning snapshot reset — fresh check required.`, true);
+
+  // Reset price history so chart rebuilds for new ticker
+  priceHistory = [];
+
+  // Update all branding
+  updateTickerBranding();
+
+  // Trigger immediate price fetch for new ticker
+  fetchPrice();
+
+  // Re-render watchlist to update Active / Track This badges
+  wlRender();
+
+  // Visual confirmation — briefly show a toast-style notice
+  showInstrumentSwitchBanner(old, newTicker);
+}
+
+function showInstrumentSwitchBanner(from, to) {
+  const existing = document.getElementById('instrument-switch-banner');
+  if (existing) existing.remove();
+  const banner = document.createElement('div');
+  banner.id = 'instrument-switch-banner';
+  banner.style.cssText = `
+    position:fixed;top:60px;left:50%;transform:translateX(-50%);
+    background:linear-gradient(135deg,#002210,#004422);
+    border:1px solid var(--green2);border-radius:8px;
+    padding:10px 20px;font-size:13px;font-weight:600;color:var(--green);
+    z-index:2000;box-shadow:0 4px 20px rgba(0,0,0,0.5);
+    display:flex;align-items:center;gap:8px;
+    animation:fadeInDown 0.25s ease;
+  `;
+  banner.innerHTML = `✓ Switched to <strong>${to}</strong> — fetching live data...`;
+  document.body.appendChild(banner);
+  setTimeout(() => { if (banner.parentNode) banner.remove(); }, 3000);
+}
+
+
+function init() {
+  state = getState();
+
+  // Migrate: ensure primaryTicker exists for old saved states
+  if (!state.primaryTicker) state.primaryTicker = 'PDBC';
+
+  // Auto-enable regime override for first 10 trades
+  if (state.totalTradeCount < 10) {
+    state.regimeOverride = true;
+  }
+
+  // Reset weekly/monthly balance tracking
+  const pt = getPTNow();
+  if (pt.getUTCDay() === 1 && !state.weekStartBalance) {
+    state.weekStartBalance = getPortfolioValue();
+  }
+  if (pt.getUTCDate() === 1) {
+    state.monthStartBalance = getPortfolioValue();
+    state.drawdownFlags.monthlyFlagged = false;
+    state.drawdownFlags.weeklyFlagged = false;
+  }
+
+  saveState(state);
+
+  // Apply branding for saved primary ticker
+  updateTickerBranding();
+
+  setInterval(updateClock, 1000);
+
+  fetchPrice();
+  refreshInterval = setInterval(fetchPrice, 60000);
+
+  // Watchlist — init tickers from storage and kick off first fetch
+  wlRefreshAll();
+  wlRefreshTimer = setInterval(wlRefreshAll, 60000);
+
+  // Handle OCO card persistence
+  if (state.position && !state.position.oco_set) {
+    document.getElementById('oco-card').style.display = 'block';
+    const sl = state.position.entryPrice * 0.97;
+    const pt2 = state.position.entryPrice * 1.06;
+    document.getElementById('oco-stop-price').textContent = '$' + sl.toFixed(4);
+    document.getElementById('oco-target-price').textContent = '$' + pt2.toFixed(4);
+  }
+
+  // Check blocking overlay
+  if (state.drawdownFlags.totalFlagged) {
+    document.getElementById('blocking-overlay').style.display = 'flex';
+  }
+
+  // Close modal on overlay click
+  document.getElementById('modal-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  });
+
+  window.addEventListener('resize', renderChart);
+}
+
+init();
+</script>
+</body>
+</html>
